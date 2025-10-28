@@ -1,0 +1,8 @@
+Django
+channels
+daphne
+python-dotenv
+redis
+influxdb-client
+gunicorn
+django-cors-headers
