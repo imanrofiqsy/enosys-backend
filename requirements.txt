@@ -6,3 +6,4 @@ redis
 influxdb-client
 gunicorn
 django-cors-headers
+whitenoise
