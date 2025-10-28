@@ -169,3 +169,9 @@ CSRF_TRUSTED_ORIGINS = [
     "https://*.vercel.app",
     "https://*.railway.app"
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "https://enosys-frontend.vercel.app",  # ganti sesuai domain Vercel kamu
+]
+
+CORS_ALLOW_CREDENTIALS = True
