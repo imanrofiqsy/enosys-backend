@@ -150,25 +150,16 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     ".railway.app",
     ".vercel.app",
-    "localhost",
-    "enosys-backend.up.railway.app"
+    "localhost"
 ]
-
-# ALLOWED_HOSTS = ["*"]
-
-# CSRF_TRUSTED_ORIGINS = ["https://enosys-frontend.vercel.app"]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.vercel.app",
     "https://*.railway.app"
 ]
 
-# CSRF_TRUSTED_ORIGINS = ["https://*.up.railway.app"]
-
 CORS_ALLOWED_ORIGINS = [
-    "https://enosys-frontend-vercel.vercel.app",  # ganti sesuai domain Vercel kamu
+    "https://enosys-frontend.vercel.app",  # ganti sesuai domain Vercel kamu
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
