@@ -136,21 +136,21 @@ ASGI_APPLICATION = "api.asgi.application"
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 url = urlparse(REDIS_URL)
 
-# CHANNEL_LAYERS = {
-#     "default": {
-#         "BACKEND": "channels_redis.core.RedisChannelLayer",
-#         "CONFIG": {
-#             "hosts": [(url.hostname, url.port)],
-#             "password": url.password,
-#         },
-#     },
-# }
-
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(url.hostname, url.port)],
+            "password": url.password,
+        },
+    },
 }
+
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels.layers.InMemoryChannelLayer"
+#     }
+# }
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
