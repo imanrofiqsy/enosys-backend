@@ -133,59 +133,33 @@ INFLUXDB = {
 ASGI_APPLICATION = "api.asgi.application"
 
 # === REDIS CHANNEL LAYER (untuk WebSocket real-time) ===
-REDIS_URL = os.getenv("REDIS_URL")
-if REDIS_URL:
-    url = urlparse(REDIS_URL)
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [
-                    {
-                        "address": (url.hostname, url.port),
-                        "password": url.password,
-                        "ssl": url.scheme == "rediss",  # penting untuk Upstash
-                    }
-                ],
-            },
-        },
-    }
-else:
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels.layers.InMemoryChannelLayer"
-        }
-    }
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+url = urlparse(REDIS_URL)
 
-# CHANNEL_LAYERS = {
-#     "default": {
-#         "BACKEND": "channels.layers.InMemoryChannelLayer"
-#     }
-# }
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(url.hostname, url.port)],
+            "password": url.password,
+        },
+    },
+}
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
     ".railway.app",
     ".vercel.app",
-    "localhost",
-    "web-production-5efb1.up.railway.app"
+    "localhost"
 ]
-
-# ALLOWED_HOSTS = ["*"]
-
-# CSRF_TRUSTED_ORIGINS = ["https://enosys-frontend.vercel.app"]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.vercel.app",
     "https://*.railway.app"
 ]
 
-# CSRF_TRUSTED_ORIGINS = ["https://*.up.railway.app"]
-
 CORS_ALLOWED_ORIGINS = [
-    "https://enosys-frontend-vercel.vercel.app",  # ganti sesuai domain Vercel kamu
+    "https://enosys-frontend.vercel.app",  # ganti sesuai domain Vercel kamu
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
