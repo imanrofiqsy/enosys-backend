@@ -168,7 +168,7 @@ ALLOWED_HOSTS = [
     ".railway.app",
     ".vercel.app",
     "localhost",
-    "enosys-backend.up.railway.app"
+    "web-production-5efb1.up.railway.app"
 ]
 
 # ALLOWED_HOSTS = ["*"]
