@@ -1,1 +1,1 @@
-web: sh -c "daphne -b 0.0.0.0 -p $PORT api.asgi:application"
+web: sh -c "daphne -b 0.0.0.0 -p 8080 api.asgi:application"
