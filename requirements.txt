@@ -7,3 +7,4 @@ influxdb-client
 gunicorn
 django-cors-headers
 whitenoise
+Twisted[tls,http2]
