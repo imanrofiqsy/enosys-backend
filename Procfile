@@ -1,1 +1,1 @@
-web: sh -c 'daphne -b 0.0.0.0 -p ${PORT:-8000} api.asgi:application'
+web: python manage.py runserver 0.0.0.0:$PORT
