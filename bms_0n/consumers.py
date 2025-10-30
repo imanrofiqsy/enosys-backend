@@ -8,3 +8,8 @@ class MyConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         await self.send(text_data=json.dumps({"message": "Echo: " + text_data}))
+
+    # Handler event dari kirim_data_dashboard()
+    async def send_dashboard_data(self, event):
+        data = event["data"]
+        await self.send(text_data=json.dumps(data))
