@@ -133,15 +133,11 @@ INFLUXDB = {
 ASGI_APPLICATION = "api.asgi.application"
 
 # === REDIS CHANNEL LAYER (untuk WebSocket real-time) ===
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-url = urlparse(REDIS_URL)
-
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(url.hostname, url.port)],
-            "password": url.password,
+            "hosts": [os.environ.get("REDIS_URL")],
         },
     },
 }
