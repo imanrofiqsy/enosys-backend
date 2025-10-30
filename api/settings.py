@@ -153,11 +153,11 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://enosys-frontend.vercel.app"
+    "https://enosys-frontend-vercel.vercel.app"
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://enosys-frontend.vercel.app"  # ganti sesuai domain Vercel kamu
+    "https://enosys-frontend-vercel.vercel.app"  # ganti sesuai domain Vercel kamu
 ]
 
 CORS_ALLOW_CREDENTIALS = True
