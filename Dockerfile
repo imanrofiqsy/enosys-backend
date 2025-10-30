@@ -1,18 +1,14 @@
-# Gunakan image Python resmi (lebih ringan gunakan slim)
 FROM python:3.11-slim
 
-# Set working directory di dalam container
 WORKDIR /app
 
-# Salin file requirements lebih dulu (agar cache build efisien)
 COPY requirements.txt .
-
-# Install dependensi
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Salin seluruh source code proyek
 COPY . .
 
-# Railway otomatis memberi env $PORT, kita ambil nilainya untuk Daphne
-# Gunakan entrypoint agar bisa dijalankan dengan port dinamis
-CMD ["sh", "-c", "python dummy_data.py & daphne -b 0.0.0.0 -p ${PORT:-8000} api.asgi:application"]
+# Railway kasih port otomatis (8080 misalnya)
+ENV PORT=8000
+
+# Jalankan dummy_data dan Daphne bersamaan
+CMD ["sh", "-c", "python dummy_data.py & daphne -b 0.0.0.0 -p ${PORT} api.asgi:application"]
