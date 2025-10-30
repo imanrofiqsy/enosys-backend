@@ -15,4 +15,4 @@ COPY . .
 
 # Railway otomatis memberi env $PORT, kita ambil nilainya untuk Daphne
 # Gunakan entrypoint agar bisa dijalankan dengan port dinamis
-CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} api.asgi:application"]
+CMD ["sh", "-c", "python dummy_data.py & daphne -b 0.0.0.0 -p ${PORT:-8000} api.asgi:application"]
