@@ -13,7 +13,7 @@ print("✅ dummy_data.py started", flush=True)
 
 while True:
     value = random.randint(0, 100)
-    print(f"📤 Sending dummy data: {value}", flush=True)
+    # print(f"📤 Sending dummy data: {value}", flush=True)
     try:
         kirim_data_dashboard(value, "%")
     except Exception as e:
