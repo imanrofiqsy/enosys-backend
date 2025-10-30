@@ -8,3 +8,4 @@ gunicorn
 django-cors-headers
 whitenoise
 Twisted[tls,http2]
+channels_redis
