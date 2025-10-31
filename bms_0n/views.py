@@ -10,7 +10,7 @@ def dashboard(request):
 def test(request):
     if request.method == "POST":
         data = request.body.decode(errors='ignore')
-        logging.info("data: ",data)
+        logging.info(f"data: {data}")
     forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     remote = request.META.get('REMOTE_ADDR')
     return JsonResponse({
