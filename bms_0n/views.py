@@ -1,9 +1,11 @@
 from django.http import HttpResponse, JsonResponse
 import json
+from django.views.decorators.csrf import csrf_exempt
 
 def dashboard(request):
     return JsonResponse({"status": "ok", "message": "Backend Railway is running"})
 
+@csrf_exempt
 def test(request):
     if request.method == "POST":
         data = json.loads(request.body)
