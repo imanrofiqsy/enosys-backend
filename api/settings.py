@@ -146,8 +146,7 @@ CHANNEL_LAYERS = {
 ALLOWED_HOSTS = [
     "127.0.0.1",
     ".railway.app",
-    "enosys-backend.up.railway.app",
-    "192.168.137.10"
+    "enosys-backend.up.railway.app"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
