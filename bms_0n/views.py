@@ -9,7 +9,7 @@ def dashboard(request):
 @csrf_exempt
 def test(request):
     if request.method == "POST":
-        data = json.loads(request.body)
+        data = request.body.decode(errors='ignore')
         logging.info("data: ",data)
     forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     remote = request.META.get('REMOTE_ADDR')
