@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'bms_0.middleware.AllowOnlyPLC',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -145,7 +146,8 @@ CHANNEL_LAYERS = {
 ALLOWED_HOSTS = [
     "127.0.0.1",
     ".railway.app",
-    "enosys-backend.up.railway.app"
+    "enosys-backend.up.railway.app",
+    "192.168.137.10"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -155,7 +157,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 CORS_ALLOWED_ORIGINS = [
     "https://enosys-frontend-vercel.vercel.app",  # ganti sesuai domain Vercel kamu
-    "https://bms-ui-vercel.vercel.app/"
+    "https://bms-ui-vercel.vercel.app/",
+    "https://192.168.137.10"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
