@@ -16,7 +16,7 @@ class AllowOnlyPLC:
 
         if ip not in ALLOWED_PLC_IPS:
             print(f"🚫 Access denied from {ip}")  # log tambahan
-            return HttpResponseForbidden("Access denied: not authorized PLC IP.")
+            return HttpResponseForbidden(f"Access denied: not authorized PLC IP. ip:{ip}")
 
         print(f"✅ Access granted to {ip}")
         return self.get_response(request)
