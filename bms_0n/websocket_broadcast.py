@@ -2,7 +2,7 @@ import json
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-def kirim_data_dashboard(value, unit):
+def kirim_data_dashboard(total_power, cost):
     """
     Fungsi ini dapat dipanggil dari mana saja (views, task, script)
     untuk mengirim data ke semua klien dashboard.
@@ -13,8 +13,8 @@ def kirim_data_dashboard(value, unit):
         {
             "type": "send_dashboard_data",  # harus sama dengan nama handler di consumer
             "data": {
-                "value_box1": str(value),
-                "unit_box1": unit,
+                "total_power": str(total_power),
+                "cost": cost,
             }
         }
     )

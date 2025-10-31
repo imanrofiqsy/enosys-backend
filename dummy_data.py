@@ -12,10 +12,11 @@ from bms_0n.websocket_broadcast import kirim_data_dashboard
 print("✅ dummy_data.py started", flush=True)
 
 while True:
-    value = random.randint(0, 100)
+    value_0 = random.randint(0, 100)
+    value_1 = random.randint(0, 100)
     # print(f"📤 Sending dummy data: {value}", flush=True)
     try:
-        kirim_data_dashboard(value, "%")
+        kirim_data_dashboard(value_0, value_1)
     except Exception as e:
         print("❌ Error:", e, file=sys.stderr, flush=True)
     time.sleep(5)
