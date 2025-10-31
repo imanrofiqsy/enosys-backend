@@ -15,5 +15,8 @@ class AllowOnlyPLC:
             ip = request.META.get('REMOTE_ADDR')
 
         if ip not in ALLOWED_PLC_IPS:
-            return HttpResponseForbidden(f"Access denied from {ip}")
+            print(f"🚫 Access denied from {ip}")  # log tambahan
+            return HttpResponseForbidden("Access denied: not authorized PLC IP.")
+
+        print(f"✅ Access granted to {ip}")
         return self.get_response(request)
