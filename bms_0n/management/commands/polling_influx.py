@@ -89,7 +89,7 @@ from(bucket: "{settings.INFLUXDB["bucket"]}")
                     # === hitung total kWh kemarin ===
                     flux_daily = f'''
                     from(bucket: "{settings.INFLUXDB["bucket"]}")
-                    |> range(start: yesterday())
+                    |> range(start: yesterday(), stop: today())
                     |> filter(fn: (r) => r._measurement == "plc_data")
                     |> filter(fn: (r) => r._field =~ /_Power$/)
                     |> integral(unit: 1h)
