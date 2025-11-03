@@ -47,21 +47,32 @@ def test(request):
             dev = body.get("device")
             arr = body.get("data", [])
 
+            # build fields untuk single point
+            fields = {}
+
             for row in arr:
-                point = (
-                    Point("plc_data")
-                    .tag("device", dev)
-                    .tag("meter", row.get("meter"))
-                    .field("Power", float(row.get("Power")))
-                    .field("Voltage", float(row.get("Voltage")))
-                    .field("Current", float(row.get("Current")))
-                )
-                write_api.write(
-                    bucket=settings.INFLUXDB["bucket"],
-                    org=settings.INFLUXDB["org"],
-                    record=point
-                )
-                logging.info("data terkirim")
+                meter = row.get("meter")  # contoh: "PM1"
+                # bikin field nama: "PM1_Power", "PM1_Voltage", ...
+                fields[f"{meter}_Power"]   = float(row.get("Power"))
+                fields[f"{meter}_Voltage"] = float(row.get("Voltage"))
+                fields[f"{meter}_Current"] = float(row.get("Current"))
+
+            # buat 1 point saja
+            point = (
+                Point("plc_data")
+                .tag("device", dev)
+            )
+
+            for k, v in fields.items():
+                point = point.field(k, v)
+
+            write_api.write(
+                bucket=settings.INFLUXDB["bucket"],
+                org=settings.INFLUXDB["org"],
+                record=point
+            )
+
+            logging.info("data terkirim (flattened)")
 
         except Exception as e:
             logging.exception("influx write error")
