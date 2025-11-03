@@ -86,24 +86,27 @@ from(bucket: "{settings.INFLUXDB["bucket"]}")
 
                     payload["total_today_kwh"] = round(kwh_total, 3)
 
-                    # === hitung total kWh kemarin ===
-                    flux_daily = f'''
+                    # === TOTAL KWH YESTERDAY ===
+                    flux_yesterday = f'''
+                    import "date"
+
                     from(bucket: "{settings.INFLUXDB["bucket"]}")
-                    |> range(start: yesterday(), stop: today())
+                    |> range(
+                        start: date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d),
+                        stop: date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
+                        )
                     |> filter(fn: (r) => r._measurement == "plc_data")
                     |> filter(fn: (r) => r._field =~ /_Power$/)
                     |> integral(unit: 1h)
                     '''
+                    y_tables = query_api.query(flux_yesterday)
 
-                    daily_tables = query_api.query(flux_daily)
-
-                    kwh_total = 0.0
-                    for t in daily_tables:
+                    kwh_yesterday = 0.0
+                    for t in y_tables:
                         for rec in t.records:
-                            # integral nilai jadi kWh
-                            kwh_total += float(rec.get_value())
+                            kwh_yesterday += float(rec.get_value())
 
-                    payload["total_yesterday_kwh"] = round(kwh_total, 3)
+                    payload["total_yesterday_kwh"] = round(kwh_yesterday, 3)
 
                     # kirim ke group channels
                     async_to_sync(channel_layer.group_send)(
