@@ -3,6 +3,7 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 import logging
 from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
 from django.conf import settings
 
 client = InfluxDBClient(
@@ -10,7 +11,7 @@ client = InfluxDBClient(
     token=settings.INFLUXDB["token"],
     org=settings.INFLUXDB["org"],
 )
-write_api = client.write_api(write_options=None)
+write_api = client.write_api(write_options=SYNCHRONOUS)
 
 def dashboard(request):
     return JsonResponse({"status": "ok", "message": "Backend Railway is running"})
