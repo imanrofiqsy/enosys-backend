@@ -43,7 +43,7 @@ def test(request):
 
             for row in arr:
                 point = (
-                    Point("power_meter")
+                    Point("plc_data")
                     .tag("device", dev)
                     .tag("meter", row.get("meter"))
                     .field("Power", float(row.get("Power")))
