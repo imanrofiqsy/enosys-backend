@@ -12,17 +12,9 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-import os
-import django
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "api.settings")
-django.setup()
-
 logger = logging.getLogger(__name__)
 
-# Poll interval (detik)
 POLL_INTERVAL = int(getattr(settings, "INFLUX_POLL_INTERVAL", 5))
-
 
 class Command(BaseCommand):
     help = "Poll InfluxDB and push latest metrics to channels group 'dashboard_group'"
