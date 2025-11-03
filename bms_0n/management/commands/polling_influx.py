@@ -67,6 +67,44 @@ from(bucket: "{settings.INFLUXDB["bucket"]}")
                         logger.debug("No recent data from influx")
                         payload["note"] = "no_data"
 
+                    # === hitung total kWh hari ini ===
+                    flux_daily = f'''
+                    from(bucket: "{settings.INFLUXDB["bucket"]}")
+                    |> range(start: today())
+                    |> filter(fn: (r) => r._measurement == "plc_data")
+                    |> filter(fn: (r) => r._field =~ /_Power$/)
+                    |> integral(unit: 1h)
+                    '''
+
+                    daily_tables = query_api.query(flux_daily)
+
+                    kwh_total = 0.0
+                    for t in daily_tables:
+                        for rec in t.records:
+                            # integral nilai jadi kWh
+                            kwh_total += float(rec.get_value())
+
+                    payload["total_today_kwh"] = round(kwh_total, 3)
+
+                    # === hitung total kWh kemarin ===
+                    flux_daily = f'''
+                    from(bucket: "{settings.INFLUXDB["bucket"]}")
+                    |> range(start: yesterday())
+                    |> filter(fn: (r) => r._measurement == "plc_data")
+                    |> filter(fn: (r) => r._field =~ /_Power$/)
+                    |> integral(unit: 1h)
+                    '''
+
+                    daily_tables = query_api.query(flux_daily)
+
+                    kwh_total = 0.0
+                    for t in daily_tables:
+                        for rec in t.records:
+                            # integral nilai jadi kWh
+                            kwh_total += float(rec.get_value())
+
+                    payload["total_yesterday_kwh"] = round(kwh_total, 3)
+
                     # kirim ke group channels
                     async_to_sync(channel_layer.group_send)(
                         group_name,
