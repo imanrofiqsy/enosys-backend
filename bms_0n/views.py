@@ -55,6 +55,7 @@ def test(request):
                     org=settings.INFLUXDB["org"],
                     record=point
                 )
+                logging.info("data terkirim")
 
         except Exception as e:
             logging.exception("influx write error")
