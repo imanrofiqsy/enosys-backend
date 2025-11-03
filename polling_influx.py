@@ -41,6 +41,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Starting Influx->WebSocket poller"))
         try:
             while True:
+                logging.info("start polling")
                 try:
                     # contoh query: ambil point terakhir per measurement "plc_data"
                     # asumsikan measurement = "plc_data" dan fields PM1_Power, PM2_Power, ...
