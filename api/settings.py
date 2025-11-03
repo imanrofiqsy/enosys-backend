@@ -131,6 +131,9 @@ INFLUXDB = {
     "bucket": os.getenv("INFLUXDB_BUCKET", "PLC_DATA"),
 }
 
+# Poll interval (detik)
+INFLUX_POLL_INTERVAL = int(os.getenv("INFLUX_POLL_INTERVAL", "5"))
+
 ASGI_APPLICATION = "api.asgi.application"
 
 # === REDIS CHANNEL LAYER (untuk WebSocket real-time) ===
