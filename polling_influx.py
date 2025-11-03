@@ -12,6 +12,12 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
+import os
+import django
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "api.settings")
+django.setup()
+
 logger = logging.getLogger(__name__)
 
 # Poll interval (detik)
