@@ -18,21 +18,27 @@ def dashboard(request):
 
 @csrf_exempt
 def test(request):
+
     if request.method == "POST":
 
-        raw = request.body.decode(errors='ignore')
-        logging.info(f"data: {raw}")
+        clen = request.META.get("CONTENT_LENGTH")
+        if not clen:
+            return JsonResponse({"ok": False, "no_content_length": True})
 
-        # --- partial body protection ---
-        content_length = request.META.get("CONTENT_LENGTH")
-        if content_length and len(raw) < int(content_length):
-            logging.warning("payload incomplete / truncated - skip")
+        clen = int(clen)
+
+        body_bytes = request.read(clen)  # <-- baca FULL sesuai length
+
+        if len(body_bytes) < clen:
+            logging.warning("payload truncated - skip")
             return JsonResponse({"ok": False, "partial": True})
 
-        # --- try parse JSON ---
+        raw = body_bytes.decode('utf-8', errors='ignore')
+        logging.info(f"data: {raw}")
+
         try:
             body = json.loads(raw)
-        except json.JSONDecodeError:
+        except Exception:
             logging.warning("json incomplete / cannot decode - skip")
             return JsonResponse({"ok": False, "invalid_json": True})
 
