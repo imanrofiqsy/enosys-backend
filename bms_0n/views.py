@@ -19,11 +19,25 @@ def dashboard(request):
 @csrf_exempt
 def test(request):
     if request.method == "POST":
+
         raw = request.body.decode(errors='ignore')
         logging.info(f"data: {raw}")
 
+        # --- partial body protection ---
+        content_length = request.META.get("CONTENT_LENGTH")
+        if content_length and len(raw) < int(content_length):
+            logging.warning("payload incomplete / truncated - skip")
+            return JsonResponse({"ok": False, "partial": True})
+
+        # --- try parse JSON ---
         try:
             body = json.loads(raw)
+        except json.JSONDecodeError:
+            logging.warning("json incomplete / cannot decode - skip")
+            return JsonResponse({"ok": False, "invalid_json": True})
+
+        # --- parse and write influx ---
+        try:
             dev = body.get("device")
             arr = body.get("data", [])
 
@@ -32,11 +46,10 @@ def test(request):
                     Point("power_meter")
                     .tag("device", dev)
                     .tag("meter", row.get("meter"))
-                    .field("Power",   float(row.get("Power")))
+                    .field("Power", float(row.get("Power")))
                     .field("Voltage", float(row.get("Voltage")))
                     .field("Current", float(row.get("Current")))
                 )
-
                 write_api.write(
                     bucket=settings.INFLUXDB["bucket"],
                     org=settings.INFLUXDB["org"],
@@ -52,6 +65,6 @@ def test(request):
 
     return JsonResponse({
         "ok": True,
-        "X-Forwarded-For": forwarded,
-        "REMOTE_ADDR": remote
+        "forwarded": forwarded,
+        "addr": remote
     })
