@@ -108,6 +108,8 @@ from(bucket: "{settings.INFLUXDB["bucket"]}")
 
                     payload["total_yesterday_kwh"] = round(kwh_yesterday, 3)
 
+                    logging.info(f"payload: {payload}")
+
                     # kirim ke group channels
                     async_to_sync(channel_layer.group_send)(
                         group_name,
