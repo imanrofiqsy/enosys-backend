@@ -11,5 +11,5 @@ COPY . .
 ENV PORT=8000
 
 # Jalankan dummy_data dan Daphne bersamaan
-# CMD ["sh", "-c", "python manage.py polling_influx & daphne -b 0.0.0.0 -p ${PORT} api.asgi:application"]
-CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT} api.asgi:application"]
+CMD ["sh", "-c", "python manage.py polling_influx & daphne -b 0.0.0.0 -p ${PORT} api.asgi:application"]
+#CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT} api.asgi:application"]
