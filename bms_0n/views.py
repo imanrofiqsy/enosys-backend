@@ -21,24 +21,27 @@ def test(request):
 
     if request.method == "POST":
 
+        # ambil payload langsung
         body_bytes = request.body
         raw = body_bytes.decode('utf-8', errors='ignore')
 
+        # FIX NaN / Inf
+        raw_fixed = (
+            raw
+            .replace("#NaN", "null")
+            .replace("#Inf", "null")
+        )
 
-        if len(body_bytes) < clen:
-            logging.warning("payload truncated - skip")
-            return JsonResponse({"ok": False, "partial": True})
-
-        raw = body_bytes.decode('utf-8', errors='ignore')
-        logging.info(f"data raw: {raw}")
+        logging.info(f"data fix: {raw_fixed}")
 
         try:
-            raw_fixed = raw.replace("#NaN", "null").replace("#Inf", "null")
-            logging.info(f"data fix: {raw_fixed}")
             body = json.loads(raw_fixed)
-        except Exception:
-            logging.warning("json incomplete / cannot decode - skip")
+        except Exception as e:
+            logging.warning(f"JSON decode error: {e}")
             return JsonResponse({"ok": False, "invalid_json": True})
+
+        # lanjut logic influx ...
+        return JsonResponse({"ok": True})
 
         # --- parse and write influx ---
         try:
