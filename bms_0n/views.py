@@ -43,44 +43,44 @@ def test(request):
             return JsonResponse({"ok": False, "invalid_json": True})
 
         # --- parse and write influx ---
-        try:
-            dev = body.get("device")
-            arr = body.get("data", [])
+    #     try:
+    #         dev = body.get("device")
+    #         arr = body.get("data", [])
 
-            # build fields untuk single point
-            fields = {}
+    #         # build fields untuk single point
+    #         fields = {}
 
-            for row in arr:
-                meter = row.get("meter")  # contoh: "PM1"
-                # bikin field nama: "PM1_Power", "PM1_Voltage", ...
-                fields[f"{meter}_Power"]   = float(row.get("Power"))
-                fields[f"{meter}_Voltage"] = float(row.get("Voltage"))
-                fields[f"{meter}_Current"] = float(row.get("Current"))
-                fields[f"{meter}_Kwh"] = float(row.get("Kwh"))
+    #         for row in arr:
+    #             meter = row.get("meter")  # contoh: "PM1"
+    #             # bikin field nama: "PM1_Power", "PM1_Voltage", ...
+    #             fields[f"{meter}_Power"]   = float(row.get("Power"))
+    #             fields[f"{meter}_Voltage"] = float(row.get("Voltage"))
+    #             fields[f"{meter}_Current"] = float(row.get("Current"))
+    #             fields[f"{meter}_Kwh"] = float(row.get("Kwh"))
 
-            # buat 1 point saja
-            point = (
-                Point("plc_data")
-                .tag("device", dev)
-            )
+    #         # buat 1 point saja
+    #         point = (
+    #             Point("plc_data")
+    #             .tag("device", dev)
+    #         )
 
-            for k, v in fields.items():
-                point = point.field(k, v)
+    #         for k, v in fields.items():
+    #             point = point.field(k, v)
 
-            write_api.write(
-                bucket=settings.INFLUXDB["bucket"],
-                org=settings.INFLUXDB["org"],
-                record=point
-            )
+    #         write_api.write(
+    #             bucket=settings.INFLUXDB["bucket"],
+    #             org=settings.INFLUXDB["org"],
+    #             record=point
+    #         )
 
-            logging.info("data terkirim (flattened)")
+    #         logging.info("data terkirim (flattened)")
 
-        except Exception as e:
-            logging.exception("influx write error")
-            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+    #     except Exception as e:
+    #         logging.exception("influx write error")
+    #         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    remote = request.META.get('REMOTE_ADDR')
+    # forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    # remote = request.META.get('REMOTE_ADDR')
 
     return JsonResponse({
         "ok": True,
