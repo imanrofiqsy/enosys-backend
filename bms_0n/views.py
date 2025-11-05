@@ -22,7 +22,7 @@ def test(request):
     if request.method == "POST":
 
         # ambil payload langsung
-        body_bytes = request.body
+        body_bytes = request.read()
         raw = body_bytes.decode('utf-8', errors='ignore')
 
         # FIX NaN / Inf
