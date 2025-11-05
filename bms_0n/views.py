@@ -37,7 +37,8 @@ def test(request):
         logging.info(f"data: {raw}")
 
         try:
-            body = json.loads(raw)
+            raw_fixed = raw.replace("#NaN", "null").replace("#Inf", "null")
+            body = json.loads(raw_fixed)
         except Exception:
             logging.warning("json incomplete / cannot decode - skip")
             return JsonResponse({"ok": False, "invalid_json": True})
