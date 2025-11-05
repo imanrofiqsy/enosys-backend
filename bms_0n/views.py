@@ -38,8 +38,8 @@ def test(request):
 
         try:
             raw_fixed = raw.replace("#NaN", "null").replace("#Inf", "null")
-            body = json.loads(raw_fixed)
             logging.info(f"data fix: {raw_fixed}")
+            body = json.loads(raw_fixed)
         except Exception:
             logging.warning("json incomplete / cannot decode - skip")
             return JsonResponse({"ok": False, "invalid_json": True})
