@@ -79,8 +79,8 @@ def test(request):
     #         logging.exception("influx write error")
     #         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
-    # forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    # remote = request.META.get('REMOTE_ADDR')
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    remote = request.META.get('REMOTE_ADDR')
 
     return JsonResponse({
         "ok": True,
