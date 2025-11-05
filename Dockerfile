@@ -7,9 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Railway kasih port otomatis (8080 misalnya)
+# Railway 
 ENV PORT=8000
 
-# Jalankan dummy_data dan Daphne bersamaan
+# dummy_data dan Daphne
 #CMD ["sh", "-c", "python manage.py polling_influx & daphne -b 0.0.0.0 -p ${PORT} api.asgi:application"]
 CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT} api.asgi:application"]
