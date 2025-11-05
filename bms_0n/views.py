@@ -34,11 +34,12 @@ def test(request):
             return JsonResponse({"ok": False, "partial": True})
 
         raw = body_bytes.decode('utf-8', errors='ignore')
-        logging.info(f"data: {raw}")
+        logging.info(f"data raw: {raw}")
 
         try:
             raw_fixed = raw.replace("#NaN", "null").replace("#Inf", "null")
             body = json.loads(raw_fixed)
+            logging.info(f"data fix: {raw_fixed}")
         except Exception:
             logging.warning("json incomplete / cannot decode - skip")
             return JsonResponse({"ok": False, "invalid_json": True})
