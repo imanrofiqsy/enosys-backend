@@ -27,7 +27,9 @@ def test(request):
 
         clen = int(clen)
 
-        body_bytes = request.read(clen)  # <-- baca FULL sesuai length
+        body_bytes = request.body
+        raw = body_bytes.decode('utf-8', errors='ignore')
+
 
         if len(body_bytes) < clen:
             logging.warning("payload truncated - skip")
