@@ -56,6 +56,7 @@ def test(request):
                 fields[f"{meter}_Power"]   = float(row.get("Power"))
                 fields[f"{meter}_Voltage"] = float(row.get("Voltage"))
                 fields[f"{meter}_Current"] = float(row.get("Current"))
+                fields[f"{meter}_Kwh"] = float(row.get("Kwh"))
 
             # buat 1 point saja
             point = (
