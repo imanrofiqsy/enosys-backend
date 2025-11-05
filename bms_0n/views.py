@@ -21,12 +21,6 @@ def test(request):
 
     if request.method == "POST":
 
-        clen = request.META.get("CONTENT_LENGTH")
-        if not clen:
-            return JsonResponse({"ok": False, "no_content_length": True})
-
-        clen = int(clen)
-
         body_bytes = request.body
         raw = body_bytes.decode('utf-8', errors='ignore')
 
