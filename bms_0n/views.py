@@ -8,7 +8,7 @@ from django.conf import settings
 
 # global buffer (ram)
 pm_buffer = {}      # key = "PM1" ... "PM5"  value = dict data
-EXPECTED_PM_COUNT = 50
+EXPECTED_PM_COUNT = 25
 
 client = InfluxDBClient(
     url=settings.INFLUXDB["url"],
