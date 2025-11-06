@@ -33,6 +33,10 @@ def test(request):
         body_bytes = request.read(clen)
 
         raw = body_bytes.decode('utf-8', errors='ignore')
+
+        # normalisasi NaN/Inf dari PLC
+        raw = raw.replace('#NaN', '0').replace('#Inf', '0')
+
         logging.info(f"data: {raw}")
 
         try:
@@ -47,7 +51,6 @@ def test(request):
         if not isinstance(arr, list):
             return JsonResponse({"ok": False, "data_not_list": True})
 
-        # flatten fields
         point = Point("plc_data").tag("device", dev)
 
         for row in arr:
@@ -55,16 +58,21 @@ def test(request):
             if not meter:
                 continue
 
-            # mapping singkat PLC → server format
             p = float(row.get("p", row.get("Power", 0)))
             v = float(row.get("v", row.get("Voltage", 0)))
-            k = float(row.get("k", row.get("Kwh", 0)))
+
+            # restore compressed kwh
+            k = float(row.get("k", row.get("Kwh", 0))) / 1_000_000.0
+
             c = float(row.get("c", row.get("Current", 0)))
 
-            point = point.field(f"{meter}_Power",   p)
-            point = point.field(f"{meter}_Voltage", v)
-            point = point.field(f"{meter}_Kwh",     k)
-            point = point.field(f"{meter}_Current", c)
+            point = (
+                point
+                .field(f"{meter}_Power",   p)
+                .field(f"{meter}_Voltage", v)
+                .field(f"{meter}_Kwh",     k)
+                .field(f"{meter}_Current", c)
+            )
 
         write_api.write(
             bucket=settings.INFLUXDB["bucket"],
@@ -77,3 +85,4 @@ def test(request):
         return JsonResponse({"ok": True, "count": len(arr)})
 
     return JsonResponse({"ok": True})
+
