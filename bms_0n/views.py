@@ -22,19 +22,15 @@ def dashboard(request):
 
 @csrf_exempt
 def test(request):
-
     if request.method == "POST":
-
         raw = request.body.decode('utf-8', errors='ignore')
-        logging.info(request.body)
-
-        raw = raw.replace('#NaN','0').replace('#Inf','0')
-
+        raw = raw.replace('\x00', '')
+        logging.info(raw)
         try:
-            body = json.loads(request.body)
+            body = json.loads(raw)
         except Exception as e:
             logging.warning(f"invalid json: {e}")
-            return JsonResponse({"ok": False, "invalid_json": True})
+            return HttpResponse("bad json", status=400)
 
         dev = body.get("device")
         arr = body.get("data")
