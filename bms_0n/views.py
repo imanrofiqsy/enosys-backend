@@ -6,9 +6,6 @@ from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 from django.conf import settings
 
-# global buffer (ram)
-pm_buffer = {}      # key = "PM1" ... "PM5"  value = dict data
-EXPECTED_PM_COUNT = 25
 
 client = InfluxDBClient(
     url=settings.INFLUXDB["url"],
@@ -38,7 +35,7 @@ def test(request):
         if not isinstance(arr, list):
             return JsonResponse({"ok": False, "data_not_list": True})
 
-        point = Point("plc_data").tag("device", dev)
+        point = Point("pm_data").tag("device", dev)
 
         for row in arr:
             meter = row.get("meter")
