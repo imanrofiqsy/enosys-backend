@@ -37,7 +37,7 @@ def test(request):
         # normalisasi NaN/Inf dari PLC
         raw = raw.replace('#NaN', '0').replace('#Inf', '0')
 
-        logging.info(f"data: {raw}")
+        logging.info(f"{raw}")
 
         try:
             body = json.loads(raw)
