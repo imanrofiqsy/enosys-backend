@@ -25,24 +25,15 @@ def test(request):
 
     if request.method == "POST":
 
-        clen = request.META.get("CONTENT_LENGTH")
-        if not clen:
-            return JsonResponse({"ok": False})
+        raw = request.body.decode('utf-8', errors='ignore')
+        logging.info(raw)
 
-        clen = int(clen)
-        body_bytes = request.read(clen)
-
-        raw = body_bytes.decode('utf-8', errors='ignore')
-
-        # normalisasi NaN/Inf dari PLC
-        raw = raw.replace('#NaN', '0').replace('#Inf', '0')
-
-        logging.info(f"{raw}")
+        raw = raw.replace('#NaN','0').replace('#Inf','0')
 
         try:
             body = json.loads(raw)
-        except Exception:
-            logging.warning("invalid json")
+        except Exception as e:
+            logging.warning(f"invalid json: {e}")
             return JsonResponse({"ok": False, "invalid_json": True})
 
         dev = body.get("device")
