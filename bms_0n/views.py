@@ -31,7 +31,7 @@ def test(request):
         raw = raw.replace('#NaN','0').replace('#Inf','0')
 
         try:
-            body = json.loads(raw)
+            body = json.loads(request.body)
         except Exception as e:
             logging.warning(f"invalid json: {e}")
             return JsonResponse({"ok": False, "invalid_json": True})
