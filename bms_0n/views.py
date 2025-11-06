@@ -26,7 +26,7 @@ def test(request):
     if request.method == "POST":
 
         raw = request.body.decode('utf-8', errors='ignore')
-        # logging.info(raw)
+        logging.info(request.body)
 
         raw = raw.replace('#NaN','0').replace('#Inf','0')
 
