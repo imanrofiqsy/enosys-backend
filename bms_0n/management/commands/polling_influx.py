@@ -42,7 +42,7 @@ class Command(BaseCommand):
                     temperature = round(random.uniform(30, 80), 2)
 
                     point = (
-                        Point("plc_data")
+                        Point("new_pm_data")
                         .tag("device", f"PM{i}")
                         .field("kwh", kwh)
                         .field("voltage", voltage)
