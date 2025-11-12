@@ -28,10 +28,10 @@ class MyConsumer(AsyncWebsocketConsumer):
         # kirim string JSON ke client
         await self.send(text_data=json.dumps({"type": "dashboard_update", "payload": data}))
 
-    async def energy(self, event):
+    async def power_summary(self, event):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
-            "type": "energy",
+            "type": "power_summary",
             "payload": data
         }))
 

@@ -455,7 +455,7 @@ from(bucket: "{BUCKET}")
                             },
                         )
 
-                    send("energy", power_summary)
+                    send("power_summary", power_summary)
                     # send("alarms_status", alarms_status)
                     # send("solar_data", solar_data)
                     # send("realtime_chart", realtime_chart)
