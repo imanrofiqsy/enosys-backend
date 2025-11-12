@@ -41,6 +41,9 @@ class Command(BaseCommand):
                     ampere = round(random.uniform(5, 25), 2)
                     temperature = round(random.uniform(30, 80), 2)
 
+                    ac = round(random.uniform(0, 1))  # 0 or 1 for AC status
+                    lamp = round(random.uniform(0, 1))  # 0 or 1 for Lamp status
+
                     point = (
                         Point("new_pm_data")
                         .tag("device", f"PM{i}")
@@ -48,6 +51,8 @@ class Command(BaseCommand):
                         .field("voltage", voltage)
                         .field("ampere", ampere)
                         .field("temperature", temperature)
+                        .field("ac", ac)
+                        .field("lamp", lamp)
                         .time(timestamp)
                     )
                     power_points.append(point)
