@@ -405,17 +405,67 @@ from(bucket: "{BUCKET}")
                         elif isinstance(data, list):
                             return [fix_value(v) for v in data]
                         return data
-                    
-                    payload = safe_json(payload)
 
-                    # Send to channels group
-                    async_to_sync(channel_layer.group_send)(
-                        group_name,
-                        {
-                            "type": "send_dashboard_data",
-                            "data": payload
-                        }
-                    )
+                    # --- 1) Power Summary ---
+                    power_summary = safe_json({
+                        "timestamp": now.isoformat(),
+                        "total_today_kwh": total_today_kwh,
+                        "pct_change_power_vs_yesterday": pct_power,
+                        "total_today_cost": total_today_cost,
+                        "pct_change_cost_vs_yesterday": pct_cost,
+                    })
+
+                    # --- 2) Alarm Summary ---
+                    alarms_status = safe_json({
+                        "active_alarms": active_alarm_count,
+                        "high_priority_alarms": high_alarm_count,
+                    })
+
+                    # --- 3) Solar Info ---
+                    solar_data = safe_json({
+                        "solar_today_kwh": solar_today_kwh,
+                        "solar_share_pct": solar_share_pct,
+                        "pln_today_kwh": pln_today_kwh,
+                    })
+
+                    # --- 4) Real-time Power Chart ---
+                    realtime_chart = safe_json(realtime_points)
+
+                    # --- 5) Weekly PLN vs Solar ---
+                    weekly_chart = safe_json({
+                        "pln": weekly_pln,
+                        "solar": weekly_solar,
+                    })
+
+                    # --- 6) Overview by Room ---
+                    overview_data = safe_json(overview)
+
+                    # --- 7) System Online Status ---
+                    system_status = safe_json({
+                        "system_online": system_online,
+                    })
+
+                    # --- Kirim satu per satu ---
+                    def send(topic, data):
+                        async_to_sync(channel_layer.group_send)(
+                            group_name,
+                            {
+                                "type": "send_dashboard_data",
+                                "data": data,
+                                "topic": topic,
+                            },
+                        )
+
+                    send("power_summary", power_summary)
+                    send("alarms_status", alarms_status)
+                    send("solar_data", solar_data)
+                    send("realtime_chart", realtime_chart)
+                    send("weekly_chart", weekly_chart)
+                    send("overview_room", overview_data)
+                    send("system_status", system_status)
+
+                    logger.info("Sent dashboard topics: power_summary, alarms, solar, realtime, weekly, overview, system_status")
+
 
                     logger.info("Sent dashboard payload: %s", payload)
 
