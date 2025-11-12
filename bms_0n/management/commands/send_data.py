@@ -49,11 +49,12 @@ class Command(BaseCommand):
                     # so we integrate it over today to get energy in kWh.
                     # If your 'kwh' is already energy reading, replace integral with sum/last logic.
                     # -------------------------
+                    pm_flux_array = "[" + ", ".join([f'"{pm}"' for pm in PM_LIST]) + "]"
                     flux_today = f'''
 from(bucket: "{BUCKET}")
   |> range(start: today())
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh")
-  |> filter(fn: (r) => contains(value: r.device, set: {PM_LIST}))
+  |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
   |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
   |> integral(unit: 1h)
   |> sum()
@@ -78,7 +79,7 @@ from(bucket: "{BUCKET}")
       start: date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d),
       stop: date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
   )
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh")
+  |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
   |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
   |> integral(unit: 1h)
   |> sum()
