@@ -28,7 +28,6 @@ class MyConsumer(AsyncWebsocketConsumer):
         # kirim string JSON ke client
         await self.send(text_data=json.dumps({"type": "dashboard_update", "payload": data}))
 
-     # 2️⃣ Power summary
     async def power_summary(self, event):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
@@ -36,23 +35,41 @@ class MyConsumer(AsyncWebsocketConsumer):
             "payload": data
         }))
 
-    # 3️⃣ Machine update
-    async def machine_update(self, event):
+    async def alarms_status(self, event):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
-            "type": "machine_update",
+            "type": "alarms_status",
             "payload": data
         }))
 
-    # 4️⃣ Alarm update
-    async def alarm_update(self, event):
+    async def solar_data(self, event):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
-            "type": "alarm_update",
+            "type": "solar_data",
             "payload": data
         }))
 
-    # 5️⃣ System status
+    async def realtime_chart(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "realtime_chart",
+            "payload": data
+        }))
+
+    async def weekly_chart(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "weekly_chart",
+            "payload": data
+        }))
+
+    async def overview_room(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "overview_room",
+            "payload": data
+        }))
+
     async def system_status(self, event):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
