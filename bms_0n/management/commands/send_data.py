@@ -450,9 +450,8 @@ from(bucket: "{BUCKET}")
                         async_to_sync(channel_layer.group_send)(
                             group_name,
                             {
-                                "type": "send_dashboard_data",
+                                "type": topic,
                                 "data": data,
-                                "topic": topic,
                             },
                         )
 
