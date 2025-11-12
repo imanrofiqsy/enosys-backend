@@ -1,23 +1,20 @@
 import time
-import json
+import random
 import logging
 from datetime import datetime, timezone
 
 from django.core.management.base import BaseCommand
 from django.conf import settings
 
-from influxdb_client import InfluxDBClient
+from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
-
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 
 logger = logging.getLogger(__name__)
 
 POLL_INTERVAL = int(getattr(settings, "INFLUX_POLL_INTERVAL", 5))
 
 class Command(BaseCommand):
-    help = "Poll InfluxDB and push latest metrics to channels group 'dashboard_group'"
+    help = "Generate dummy Power Meter & Alarm data to InfluxDB"
 
     def handle(self, *args, **options):
         # init client (sync)
@@ -26,105 +23,70 @@ class Command(BaseCommand):
             token=settings.INFLUXDB["token"],
             org=settings.INFLUXDB["org"],
         )
-        query_api = client.query_api()
-        channel_layer = get_channel_layer()
-        group_name = "dashboard_group"
+        write_api = client.write_api(write_options=SYNCHRONOUS)
 
-        self.stdout.write(self.style.SUCCESS("Starting Influx->WebSocket poller"))
+        bucket = settings.INFLUXDB["bucket"]
+
+        self.stdout.write(self.style.SUCCESS("Starting Dummy Data Generator for InfluxDB"))
+
         try:
             while True:
-                logging.info("start polling")
-                try:
-                    # contoh query: ambil point terakhir per measurement "plc_data"
-                    # asumsikan measurement = "plc_data" dan fields PM1_Power, PM2_Power, ...
-                    flux = f'''
-from(bucket: "{settings.INFLUXDB["bucket"]}")
-  |> range(start: -1m)
-  |> filter(fn: (r) => r._measurement == "plc_data")
-  |> last()
-'''
-                    tables = query_api.query(flux)
-                    # kita akan merapikan hasil menjadi single dict
-                    # hasil query bisa berisi banyak series -> kita ambil per _field
-                    payload = {
-                        "time": datetime.now(timezone.utc).isoformat(),
-                        "device": None,
-                        "fields": {}
-                    }
+                timestamp = datetime.now(timezone.utc)
 
-                    for table in tables:
-                        for record in table.records:
-                            # record._field, record.get_value(), record.values contain tags
-                            field_name = record.get_field()  # mis: "PM1_Power"
-                            value = record.get_value()
-                            # ambil device tag kalau ada
-                            if not payload["device"]:
-                                payload["device"] = record.values.get("device")
-                            payload["fields"][field_name] = value
+                # === 1) Generate Power Meter Dummy Data ===
+                power_points = []
+                for i in range(1, 9):  # PM1 sampai PM8
+                    kwh = round(random.uniform(1000, 2000), 3)
+                    voltage = round(random.uniform(210, 240), 2)
+                    ampere = round(random.uniform(5, 25), 2)
+                    temperature = round(random.uniform(30, 80), 2)
 
-                    # Jika tidak ada data, kita kirim minimal info (agar UI tahu koneksi ok)
-                    if not payload["fields"]:
-                        logger.debug("No recent data from influx")
-                        payload["note"] = "no_data"
-
-                    # === hitung total kWh hari ini ===
-                    flux_daily = f'''
-                    from(bucket: "{settings.INFLUXDB["bucket"]}")
-                    |> range(start: today())
-                    |> filter(fn: (r) => r._measurement == "plc_data")
-                    |> filter(fn: (r) => r._field =~ /_Power$/)
-                    |> integral(unit: 1h)
-                    '''
-
-                    daily_tables = query_api.query(flux_daily)
-
-                    kwh_total = 0.0
-                    for t in daily_tables:
-                        for rec in t.records:
-                            # integral nilai jadi kWh
-                            kwh_total += float(rec.get_value())
-
-                    payload["total_today_kwh"] = round(kwh_total, 3)
-
-                    # === TOTAL KWH YESTERDAY ===
-                    flux_yesterday = f'''
-                    import "date"
-
-                    from(bucket: "{settings.INFLUXDB["bucket"]}")
-                    |> range(
-                        start: date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d),
-                        stop: date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
-                        )
-                    |> filter(fn: (r) => r._measurement == "plc_data")
-                    |> filter(fn: (r) => r._field =~ /_Power$/)
-                    |> integral(unit: 1h)
-                    '''
-                    y_tables = query_api.query(flux_yesterday)
-
-                    kwh_yesterday = 0.0
-                    for t in y_tables:
-                        for rec in t.records:
-                            kwh_yesterday += float(rec.get_value())
-
-                    payload["total_yesterday_kwh"] = round(kwh_yesterday, 3)
-
-                    logging.info(f"payload: {payload}")
-
-                    # kirim ke group channels
-                    async_to_sync(channel_layer.group_send)(
-                        group_name,
-                        {
-                            "type": "send_dashboard_data",
-                            "data": payload
-                        }
+                    point = (
+                        Point("plc_data")
+                        .tag("device", f"PM{i}")
+                        .field("kwh", kwh)
+                        .field("voltage", voltage)
+                        .field("ampere", ampere)
+                        .field("temperature", temperature)
+                        .time(timestamp)
                     )
+                    power_points.append(point)
 
-                    logger.debug("Sent dashboard payload: %s", payload)
+                # === 2) Generate Alarm Dummy Data ===
+                alarm_points = []
+                # Probabilitas muncul alarm
+                if random.random() < 0.3:  # 30% chance
+                    sources = [f"PM{i}" for i in range(1, 9)]
+                    severities = ["Low", "Medium", "High", "Critical"]
+                    messages = [
+                        "Over temperature",
+                        "Voltage too low",
+                        "Current spike",
+                        "Communication lost",
+                        "Power drop detected",
+                    ]
+                    actions = ["Investigate", "Restart", "Ignore", "Shutdown"]
 
-                except Exception as e:
-                    logger.exception("Polling failed: %s", e)
+                    alarm_point = (
+                        Point("alarm_data")
+                        .field("timestamp", timestamp.isoformat())
+                        .field("source", random.choice(sources))
+                        .field("severity", random.choice(severities))
+                        .field("message", random.choice(messages))
+                        .field("status", random.choice(["active", "resolved"]))
+                        .field("action", random.choice(actions))
+                        .time(timestamp)
+                    )
+                    alarm_points.append(alarm_point)
 
+                # === 3) Tulis ke Influx ===
+                all_points = power_points + alarm_points
+                write_api.write(bucket=bucket, record=all_points)
+
+                logger.info(f"Written {len(power_points)} power data + {len(alarm_points)} alarms at {timestamp}")
                 time.sleep(POLL_INTERVAL)
 
         except KeyboardInterrupt:
-            self.stdout.write(self.style.WARNING("Poller stopped by user"))
+            self.stdout.write(self.style.WARNING("Dummy data generator stopped by user"))
+        except Exception as e:
+            logger.exception(f"Error while writing dummy data: {e}")
