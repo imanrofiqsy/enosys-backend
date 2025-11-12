@@ -40,6 +40,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
             "type": "alarms_status",
+            "topic": "alarms",
             "payload": data
         }))
 
@@ -47,6 +48,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
             "type": "solar_data",
+            "topic": "solar",
             "payload": data
         }))
 
@@ -54,6 +56,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
             "type": "realtime_chart",
+            "topic": "energy",
             "payload": data
         }))
 
@@ -61,6 +64,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
             "type": "weekly_chart",
+            "topic": "pln_vs_solar",
             "payload": data
         }))
 
@@ -68,6 +72,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
             "type": "overview_room",
+            "topic": "floor_status",
             "payload": data
         }))
 
@@ -75,5 +80,6 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
             "type": "system_status",
+            "topic": "system_status",
             "payload": data
         }))
