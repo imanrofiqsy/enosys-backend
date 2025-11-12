@@ -269,15 +269,31 @@ from(bucket: "{BUCKET}")
                         daymap = {}
                         for table in tables:
                             for rec in table.records:
-                                t = rec.get_time().astimezone(timezone.utc).date()
+                                # handle kasus record tidak punya kolom _time
                                 try:
-                                    daymap[str(t)] = round(float(rec.get_value()), 3)
+                                    t = rec.get_time().astimezone(timezone.utc).date()
+                                except KeyError:
+                                    # fallback: gunakan tanggal hari ini kalau _time tidak ada
+                                    t = datetime.now(timezone.utc).date()
+                                
+                                try:
+                                    val = float(rec.get_value())
+                                    if str(t) in daymap:
+                                        daymap[str(t)] += val  # kalau ada beberapa record di hari sama, jumlahkan
+                                    else:
+                                        daymap[str(t)] = val
                                 except Exception:
                                     pass
-                        # construct list for last 7 days (oldest -> newest)
+
+                        # siapkan list 7 hari terakhir (dari yang paling lama ke terbaru)
+                        now = datetime.now(timezone.utc)
                         out = []
                         for d in (now.date() - timedelta(days=i) for i in reversed(range(7))):
-                            out.append({"date": str(d), "value": daymap.get(str(d), 0.0)})
+                            out.append({
+                                "date": str(d),
+                                "value": round(daymap.get(str(d), 0.0), 3)
+                            })
+
                         return out
 
                     weekly_pln = records_to_daylist(tables_pln)
