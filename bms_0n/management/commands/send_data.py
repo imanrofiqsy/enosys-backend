@@ -393,6 +393,21 @@ from(bucket: "{BUCKET}")
                         "system_online": system_online,
                     }
 
+                    def safe_json(data):
+                        def fix_value(v):
+                            if isinstance(v, float):
+                                if math.isnan(v) or math.isinf(v):
+                                    return 0.0
+                            return v
+
+                        if isinstance(data, dict):
+                            return {k: fix_value(v) for k, v in data.items()}
+                        elif isinstance(data, list):
+                            return [fix_value(v) for v in data]
+                        return data
+                    
+                    payload = safe_json(payload)
+
                     # Send to channels group
                     async_to_sync(channel_layer.group_send)(
                         group_name,
