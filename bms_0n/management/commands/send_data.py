@@ -249,17 +249,19 @@ from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and (r.device =~ /PM[1-7]/))
   |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
-  |> integral(unit: 1h)
-  |> sum()
 '''
+                    
+#   |> integral(unit: 1h)
+#   |> sum()
                     flux_weekly_solar = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and r.device == "{PM_SOLAR}")
   |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
-  |> integral(unit: 1h)
-  |> sum()
 '''
+                    
+#   |> integral(unit: 1h)
+#   |> sum()
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
 
