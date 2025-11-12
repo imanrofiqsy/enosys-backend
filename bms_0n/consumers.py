@@ -32,6 +32,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         await self.send(text_data=json.dumps({
             "type": "power_summary",
+            "topic": "power",
             "payload": data
         }))
 
