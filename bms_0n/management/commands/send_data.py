@@ -17,7 +17,7 @@ BUCKET = INFLUX["bucket"]
 ORG = INFLUX["org"]
 
 # cost per kWh (currency per kWh) — set in settings or default
-COST_PER_KWH = float(getattr(settings, "COST_PER_KWH", 1444))
+COST_PER_KWH = float(getattr(settings, "COST_PER_KWH", 0.15))
 
 # devices
 PM_SOLAR = "PM8"
@@ -97,8 +97,8 @@ from(bucket: "{BUCKET}")
                     # -------------------------
                     # 3) cost today & yesterday (simple multiplication)
                     # -------------------------
-                    total_today_cost = f"Rp {round(total_today_kwh * COST_PER_KWH):,}".replace(",", ".")
-                    total_yesterday_cost = f"Rp {round(total_yesterday_kwh * COST_PER_KWH):,}".replace(",", ".")
+                    total_today_cost = round(total_today_kwh * COST_PER_KWH, 2)
+                    total_yesterday_cost = round(total_yesterday_kwh * COST_PER_KWH, 2)
 
                     # -------------------------
                     # 4) percentage change helpers (handle div by zero)
