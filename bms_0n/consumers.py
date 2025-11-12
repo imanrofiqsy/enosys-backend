@@ -27,3 +27,35 @@ class MyConsumer(AsyncWebsocketConsumer):
         data = event.get("data", {})
         # kirim string JSON ke client
         await self.send(text_data=json.dumps({"type": "dashboard_update", "payload": data}))
+
+     # 2️⃣ Power summary
+    async def power_summary(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "power_summary",
+            "payload": data
+        }))
+
+    # 3️⃣ Machine update
+    async def machine_update(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "machine_update",
+            "payload": data
+        }))
+
+    # 4️⃣ Alarm update
+    async def alarm_update(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "alarm_update",
+            "payload": data
+        }))
+
+    # 5️⃣ System status
+    async def system_status(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "system_status",
+            "payload": data
+        }))
