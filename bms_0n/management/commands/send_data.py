@@ -455,13 +455,13 @@ from(bucket: "{BUCKET}")
                             },
                         )
 
-                    send("power_summary", power_summary)
-                    send("alarms_status", alarms_status)
-                    send("solar_data", solar_data)
-                    send("realtime_chart", realtime_chart)
-                    send("weekly_chart", weekly_chart)
-                    send("overview_room", overview_data)
-                    send("system_status", system_status)
+                    send("energy", power_summary)
+                    # send("alarms_status", alarms_status)
+                    # send("solar_data", solar_data)
+                    # send("realtime_chart", realtime_chart)
+                    # send("weekly_chart", weekly_chart)
+                    # send("overview_room", overview_data)
+                    # send("system_status", system_status)
 
                     logger.info("Sent dashboard topics: power_summary, alarms, solar, realtime, weekly, overview, system_status")
 
