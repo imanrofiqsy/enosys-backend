@@ -265,6 +265,8 @@ from(bucket: "{BUCKET}")
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
 
+                    logging.info("data pln solar: %s %s", tables_pln, tables_solar)
+
                     # Note: depending on how your Influx stores series per day, these sums may be single records.
                     # We'll attempt to get up to 7 points; if fewer, we'll pad zeros for missing days.
                     def records_to_daylist(tables):
