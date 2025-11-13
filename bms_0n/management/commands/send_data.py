@@ -265,8 +265,6 @@ from(bucket: "{BUCKET}")
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
 
-                    logging.info("data pln solar: %s %s", tables_pln, tables_solar)
-
                     # Note: depending on how your Influx stores series per day, these sums may be single records.
                     # We'll attempt to get up to 7 points; if fewer, we'll pad zeros for missing days.
                     def records_to_daylist(tables):
@@ -379,23 +377,6 @@ from(bucket: "{BUCKET}")
                     # -------------------------
                     # Build payload
                     # -------------------------
-                    payload = {
-                        "timestamp": now.isoformat(),
-                        "total_today_kwh": total_today_kwh,
-                        "pct_change_power_vs_yesterday": pct_power,
-                        "total_today_cost": total_today_cost,
-                        "pct_change_cost_vs_yesterday": pct_cost,
-                        "active_alarms": active_alarm_count,
-                        "high_priority_alarms": high_alarm_count,
-                        "solar_today_kwh": solar_today_kwh,
-                        "solar_share_pct": solar_share_pct,
-                        "pln_today_kwh": pln_today_kwh,
-                        "realtime_power_points": realtime_points,
-                        "weekly_pln": weekly_pln,
-                        "weekly_solar": weekly_solar,
-                        "overview_by_room": overview,
-                        "system_online": system_online,
-                    }
 
                     def safe_json(data):
                         def fix_value(v):
@@ -449,6 +430,11 @@ from(bucket: "{BUCKET}")
                         "system_online": system_online,
                     })
 
+                    ping = safe_json({
+                        "pln": tables_pln,
+                        "solar": tables_solar,
+                    })
+
                     # --- Kirim satu per satu ---
                     def send(topic, data):
                         async_to_sync(channel_layer.group_send)(
@@ -466,11 +452,7 @@ from(bucket: "{BUCKET}")
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-
-                    logger.info("Sent dashboard topics: power_summary, alarms, solar, realtime, weekly, overview, system_status")
-
-
-                    logger.info("Sent dashboard payload: %s", payload)
+                    send("ping", ping)
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)

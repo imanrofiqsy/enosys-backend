@@ -83,3 +83,11 @@ class MyConsumer(AsyncWebsocketConsumer):
             "topic": "system_status",
             "payload": data
         }))
+
+    async def ping(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "ping",
+            "topic": "ping",
+            "payload": data
+        }))
