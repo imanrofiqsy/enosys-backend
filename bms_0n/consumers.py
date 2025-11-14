@@ -128,5 +128,5 @@ class MyConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "event": event["event"],
             "payload": event["payload"],
-            "user": event["user"]
+            "topic": event["topic"]
         }))
