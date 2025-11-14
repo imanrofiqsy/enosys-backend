@@ -431,8 +431,8 @@ from(bucket: "{BUCKET}")
                     })
 
                     ping = safe_json({
-                        "pln": tables_pln,
-                        "solar": tables_solar,
+                        "pln": records_to_daylist(tables_pln),
+                        "solar": records_to_daylist(tables_solar),
                     })
 
                     # --- Kirim satu per satu ---
