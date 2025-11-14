@@ -119,3 +119,14 @@ class MyConsumer(AsyncWebsocketConsumer):
             "topic": "ping",
             "payload": data
         }))
+
+    async def broadcast_message(self, event):
+        """
+        Handler yang dipanggil oleh group_send
+        """
+        # Kirim ke semua client
+        await self.send(text_data=json.dumps({
+            "event": event["event"],
+            "payload": event["payload"],
+            "user": event["user"]
+        }))
