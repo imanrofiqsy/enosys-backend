@@ -20,13 +20,10 @@ class MyConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data=None, bytes_data=None):
         # optional echo, atau kita bisa ignore
         if text_data:
-            type_data_json = json.loads(text_data)
-            topic = type_data_json.get("topic", "no_topic")
-            payload = type_data_json.get("payload", {})
             await self.send(text_data=json.dumps({
                 "type": "control",
-                "topic": topic,
-                "payload": payload
+                "topic": json.loads(text_data).get("topic", "unknown"),
+                "payload": json.loads(text_data).get("payload", {})
             }))
 
     # handler event dari group_send; tipe harus sama: send_dashboard_data
