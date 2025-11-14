@@ -236,8 +236,8 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh")
-  |> aggregateWindow(every: 1d, fn: mean, createEmpty: true)
-  |> integral(unit: 1d)
+  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+  |> integral(unit: 1h)
   |> group(columns: ["device"])
   |> sum()
 '''
@@ -247,8 +247,11 @@ from(bucket: "{BUCKET}")
                     flux_weekly_pln = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and (r.device =~ /PM[1-7]/))
-  |> aggregateWindow(every: 1d, fn: mean, createEmpty: true)
+  |> filter(fn: (r) => r._measurement == "new_pm_data"
+                   and r._field == "kwh"
+                   and r.device =~ /PM[1-7]/)
+  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+  |> difference(nonNegative: true)
 '''
                     
 #   |> integral(unit: 1h)
@@ -256,8 +259,11 @@ from(bucket: "{BUCKET}")
                     flux_weekly_solar = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and r.device == "{PM_SOLAR}")
-  |> aggregateWindow(every: 1d, fn: mean, createEmpty: true)
+  |> filter(fn: (r) => r._measurement == "new_pm_data"
+                   and r._field == "kwh"
+                   and r.device == "{PM_SOLAR}")
+  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+  |> difference(nonNegative: true)
 '''
                     
 #   |> integral(unit: 1h)
