@@ -236,7 +236,7 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh")
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+  |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
   |> integral(unit: 1h)
   |> group(columns: ["device"])
   |> sum()
@@ -248,8 +248,7 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and (r.device =~ /PM[1-7]/))
-  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
-  |> difference(nonNegative: true)
+  |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
 '''
                     
 #   |> integral(unit: 1h)
@@ -258,8 +257,7 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and r.device == "{PM_SOLAR}")
-  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
-  |> difference(nonNegative: true)
+  |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
 '''
                     
 #   |> integral(unit: 1h)
@@ -433,8 +431,8 @@ from(bucket: "{BUCKET}")
                     })
 
                     ping = safe_json({
-                        "pln": records_to_daylist(tables_pln),
-                        "solar": records_to_daylist(tables_solar),
+                        "pln": tables_pln,
+                        "solar": tables_solar,
                     })
 
                     # --- Kirim satu per satu ---
