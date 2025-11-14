@@ -19,9 +19,34 @@ class MyConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         # optional echo, atau kita bisa ignore
-        logger.debug("WS received data: %s", text_data)
+        logger.debug("WS received data raw: %s", text_data)
+
         if text_data:
-            await self.send(text_data=json.dumps({"message": "Echo: " + text_data}))
+            try:
+                data = json.loads(text_data)   # parse JSON dari frontend
+
+                msg_type = data.get("type")
+                command = data.get("command")
+                machine_id = data.get("machine_id")
+
+                # contoh debug
+                logger.debug("Parsed type=%s, command=%s, machine=%s",
+                             msg_type, command, machine_id)
+
+                # contoh logika berdasarkan message
+                # if msg_type == "control":
+                #     await self.handle_control(command, machine_id)
+
+                # contoh response balik ke frontend
+                await self.send(text_data=json.dumps({
+                    "status": "OK",
+                    "received_type": msg_type,
+                    "received_command": command
+                }))
+
+            except json.JSONDecodeError:
+                logger.error("Invalid JSON received")
+                await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
 
     # handler event dari group_send; tipe harus sama: send_dashboard_data
     async def send_dashboard_data(self, event):
