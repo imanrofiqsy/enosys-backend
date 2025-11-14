@@ -18,36 +18,38 @@ class MyConsumer(AsyncWebsocketConsumer):
         logger.info("WS disconnected: %s code=%s", self.channel_name, close_code)
 
     async def receive(self, text_data=None, bytes_data=None):
-        # optional echo, atau kita bisa ignore
-        logger.debug("WS received data raw: %s", text_data)
+        logger.debug("WS received raw: %s", text_data)
 
-        if text_data:
-            try:
-                data = json.loads(text_data)   # parse JSON dari frontend
+        if not text_data:
+            return
 
-                msg_type = data.get("type")
-                command = data.get("command")
-                machine_id = data.get("machine_id")
+        # Parse JSON dari frontend
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
+            return
 
-                # contoh debug
-                logger.debug("Parsed type=%s, command=%s, machine=%s",
-                             msg_type, command, machine_id)
+        # Ambil nilai
+        event_type = data.get("type")
+        topic = data.get("topic")
+        payload = data.get("payload")
 
-                # contoh logika berdasarkan message
-                # if msg_type == "control":
-                #     await self.handle_control(command, machine_id)
+        logger.debug("Parsed event=%s, payload=%s, Topic=%s",
+                     event_type, payload, topic)
 
-                # contoh response balik ke frontend
-                await self.send(text_data=json.dumps({
-                    "status": "OK",
-                    "received_type": msg_type,
-                    "received_command": command
-                }))
-
-            except json.JSONDecodeError:
-                logger.error("Invalid JSON received")
-                await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
-
+        # ====================================================
+        # CONTOH: Kirim balik ke semua client dalam group
+        # ====================================================
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "broadcast_message",   # handler method
+                "event": event_type,
+                "payload": payload,
+                "topic": topic,
+            }
+        )
     # handler event dari group_send; tipe harus sama: send_dashboard_data
     async def send_dashboard_data(self, event):
         data = event.get("data", {})
