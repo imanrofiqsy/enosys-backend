@@ -248,8 +248,7 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and (r.device =~ /PM[1-7]/))
-  |> aggregateWindow(every: 1d, fn: last, createEmpty: false)
-  |> difference()
+  |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
 '''
                     
 #   |> integral(unit: 1h)
@@ -258,8 +257,7 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and r.device == "{PM_SOLAR}")
-  |> aggregateWindow(every: 1d, fn: last, createEmpty: false)
-  |> difference()
+  |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
 '''
                     
 #   |> integral(unit: 1h)
@@ -433,8 +431,8 @@ from(bucket: "{BUCKET}")
                     })
 
                     ping = safe_json({
-                        "pln": [rec.get_value() for table in tables_pln for rec in table.records],
-                        "solar": [rec.get_value() for table in tables_solar for rec in table.records],
+                        "pln": tables_pln,
+                        "solar": tables_solar,
                     })
 
                     # --- Kirim satu per satu ---
