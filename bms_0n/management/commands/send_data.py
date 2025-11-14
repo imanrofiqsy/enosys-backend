@@ -248,7 +248,8 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and (r.device =~ /PM[1-7]/))
-  |> aggregateWindow(every: 1d, fn: mean, createEmpty: true)
+  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+  |> difference(nonNegative: true)
 '''
                     
 #   |> integral(unit: 1h)
@@ -257,7 +258,8 @@ from(bucket: "{BUCKET}")
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
   |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh" and r.device == "{PM_SOLAR}")
-  |> aggregateWindow(every: 1d, fn: mean, createEmpty: true)
+  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+  |> difference(nonNegative: true)
 '''
                     
 #   |> integral(unit: 1h)
