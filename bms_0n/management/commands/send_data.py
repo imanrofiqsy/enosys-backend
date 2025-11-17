@@ -215,18 +215,31 @@ class Command(BaseCommand):
                     # 7) Realtime chart: Minute-by-minute difference total power (PM1..PM7)
                     # ---------------------------------------------------------
                     flux_realtime_24 = f'''
-                    from(bucket: "{BUCKET}")
+                    pm_data = from(bucket: "{BUCKET}")
                     |> range(start: -24h)
                     |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r._field == "kwh"
-                        and r.device =~ /PM[1-7]/
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh" and
+                        r.device =~ /PM[1-7]/
                     )
-                    |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+
+                    first_vals = pm_data
+                    |> aggregateWindow(every: 1m, fn: first, createEmpty: false)
+
+                    last_vals = pm_data
+                    |> aggregateWindow(every: 1m, fn: last, createEmpty: false)
+
+                    join(
+                    tables: {{f: first_vals, l: last_vals}},
+                    on: ["_time", "device"]
+                    )
+                    |> map(fn: (r) => ({
+                            _time: r._time,
+                            _value: r._value_l - r._value_f
+                    }))
                     |> group(columns: ["_time"])
-                    |> difference(columns: ["_value"])
                     |> sum(column: "_value")
-                    |> yield(name: "minute_difference")
+                    |> sort(columns: ["_time"])
                     '''
 
                     tables = query_api.query(flux_realtime_24)
@@ -242,7 +255,8 @@ class Command(BaseCommand):
                             except:
                                 pass
 
-                    realtime_points = sorted(realtime_points, key=lambda x: x["time"])[-24:]
+                    # keep last 24 hours only
+                    realtime_points = realtime_points[-24:]
 
                     # -------------------------
                     # 8) PLN vs Solar per day for last 7 days
