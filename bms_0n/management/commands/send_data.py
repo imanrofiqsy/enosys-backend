@@ -44,66 +44,66 @@ class Command(BaseCommand):
             while True:
                 try:
                     now = datetime.now(timezone.utc)
-                    # -------------------------
+                    # ---------------------------------------------------------
                     # 1) Total power usage today (kWh)
-                    # Assumption: field 'kwh' is instantaneous power in kW,
-                    # so we integrate it over today to get energy in kWh.
-                    # If your 'kwh' is already energy reading, replace integral with sum/last logic.
-                    # -------------------------
+                    # ---------------------------------------------------------
                     pm_flux_array = "[" + ", ".join([f'"{pm}"' for pm in PM_LIST]) + "]"
+
                     flux_today = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "power_meter_data" and r._field == "kwh")
-  |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-  |> integral(unit: 1h)
-  |> sum()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today())
+                    |> filter(fn: (r) => r._measurement == "power_meter_data" and r._field == "kwh")
+                    |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
+                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                    |> integral(unit: 1h)
+                    |> sum()
+                    '''
+
                     tables = query_api.query(flux_today)
                     total_today_kwh = 0.0
                     for table in tables:
                         for rec in table.records:
                             try:
                                 total_today_kwh += float(rec.get_value())
-                            except Exception:
+                            except:
                                 pass
                     total_today_kwh = round(total_today_kwh, 3)
 
-                    # -------------------------
-                    # 2) Total power usage yesterday
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 2) Total power usage yesterday (kWh)
+                    # ---------------------------------------------------------
                     flux_yesterday = f'''
-import "date"
-from(bucket: "{BUCKET}")
-  |> range(
-      start: date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d),
-      stop: date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
-  )
-  |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-  |> integral(unit: 1h)
-  |> sum()
-'''
+                    import "date"
+                    from(bucket: "{BUCKET}")
+                    |> range(
+                        start: date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d),
+                        stop:  date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
+                    )
+                    |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
+                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                    |> integral(unit: 1h)
+                    |> sum()
+                    '''
+
                     tables = query_api.query(flux_yesterday)
                     total_yesterday_kwh = 0.0
                     for table in tables:
                         for rec in table.records:
                             try:
                                 total_yesterday_kwh += float(rec.get_value())
-                            except Exception:
+                            except:
                                 pass
                     total_yesterday_kwh = round(total_yesterday_kwh, 3)
 
-                    # -------------------------
-                    # 3) cost today & yesterday (simple multiplication)
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 3) Cost today & yesterday
+                    # ---------------------------------------------------------
                     total_today_cost = round(total_today_kwh * COST_PER_KWH, 2)
                     total_yesterday_cost = round(total_yesterday_kwh * COST_PER_KWH, 2)
 
-                    # -------------------------
-                    # 4) percentage change helpers (handle div by zero)
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 4) Percentage change helper
+                    # ---------------------------------------------------------
                     def pct_change(new, old):
                         if old == 0:
                             if new == 0:
@@ -112,121 +112,135 @@ from(bucket: "{BUCKET}")
                         return round(((new - old) / old) * 100.0, 2)
 
                     pct_power = pct_change(total_today_kwh, total_yesterday_kwh)
-                    pct_cost = pct_change(total_today_cost, total_yesterday_cost)
+                    pct_cost  = pct_change(total_today_cost, total_yesterday_cost)
 
-                    # -------------------------
-                    # 5) alarms: active count and high priority
-                    # measurement: alarm_data_new
-                    # assume fields: severity (string), status (string)
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 5) Alarms (active count & high priority)
+                    # ---------------------------------------------------------
                     flux_alarms_active = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "alarm_data_new")
-  |> filter(fn: (r) => r._field == "status" and r._value == "active")
-  |> count()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -7d)
+                    |> filter(fn: (r) =>
+                        r._measurement == "alarm_data_new" and
+                        r._field == "status" and r._value == "active"
+                    )
+                    |> count()
+                    '''
+
                     tables = query_api.query(flux_alarms_active)
                     active_alarm_count = 0
                     for table in tables:
                         for rec in table.records:
                             try:
                                 active_alarm_count += int(rec.get_value())
-                            except Exception:
+                            except:
                                 pass
 
                     flux_alarms_high = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "alarm_data_new")
-  |> filter(fn: (r) => r._field == "severity")
-  |> filter(fn: (r) => r._value == "High" or r._value == "Critical")
-  |> count()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -7d)
+                    |> filter(fn: (r) =>
+                        r._measurement == "alarm_data_new"
+                        and r._field == "severity"
+                        and (r._value == "High" or r._value == "Critical")
+                    )
+                    |> count()
+                    '''
+
                     tables = query_api.query(flux_alarms_high)
                     high_alarm_count = 0
                     for table in tables:
                         for rec in table.records:
                             try:
                                 high_alarm_count += int(rec.get_value())
-                            except Exception:
+                            except:
                                 pass
 
-                    # -------------------------
-                    # 6) Total solar output (PM8) today (kWh)
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 6) Total solar output today (PM8)
+                    # ---------------------------------------------------------
                     flux_solar_today = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "power_meter_data" and r.device == "{PM_SOLAR}" and r._field == "kwh")
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-  |> integral(unit: 1h)
-  |> sum()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today())
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r.device == "{PM_SOLAR}"
+                        and r._field == "kwh"
+                    )
+                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                    |> integral(unit: 1h)
+                    |> sum()
+                    '''
+
                     tables = query_api.query(flux_solar_today)
                     solar_today_kwh = 0.0
                     for table in tables:
                         for rec in table.records:
                             try:
                                 solar_today_kwh += float(rec.get_value())
-                            except Exception:
+                            except:
                                 pass
                     solar_today_kwh = round(solar_today_kwh, 3)
 
-                    # -------------------------
-                    # Solar percentage of total load:
-                    # total load = solar + pln (PLN = PM1..PM7)
-                    # compute pln_today similarly
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # PLN today (PM1..PM7) for solar share
+                    # ---------------------------------------------------------
                     flux_pln_today = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "power_meter_data" and (r.device =~ /PM[1-7]/) and r._field == "kwh")
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-  |> integral(unit: 1h)
-  |> sum()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today())
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r._field == "kwh"
+                        and r.device =~ /PM[1-7]/
+                    )
+                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                    |> integral(unit: 1h)
+                    |> sum()
+                    '''
+
                     tables = query_api.query(flux_pln_today)
                     pln_today_kwh = 0.0
                     for table in tables:
                         for rec in table.records:
                             try:
                                 pln_today_kwh += float(rec.get_value())
-                            except Exception:
+                            except:
                                 pass
                     pln_today_kwh = round(pln_today_kwh, 3)
 
-                    total_load = pln_today_kwh + solar_today_kwh
-                    solar_share_pct = 0.0
-                    if total_load > 0:
-                        solar_share_pct = round((solar_today_kwh / total_load) * 100.0, 2)
+                    total_load = solar_today_kwh + pln_today_kwh
+                    solar_share_pct = round((solar_today_kwh / total_load) * 100.0, 2) if total_load > 0 else 0.0
 
-                    # -------------------------
-                    # 7) Real-time chart data: 24 latest points of total power excluding PM8
-                    # Approach: take last 24 minutes and aggregate per minute across PM1..PM7
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 7) Realtime chart: 24 points total power (PM1..PM7)
+                    # ---------------------------------------------------------
                     flux_realtime_24 = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -24m)
-  |> filter(fn: (r) => r._measurement == "power_meter_data" and r._field == "kwh")
-  |> filter(fn: (r) => r.device =~ /PM[1-7]/)
-  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
-  |> group(columns: ["_time"])
-  |> sum(column: "_value")
-  |> yield(name: "sum_per_min")
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -24m)
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r._field == "kwh"
+                        and r.device =~ /PM[1-7]/
+                    )
+                    |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+                    |> group(columns: ["_time"])
+                    |> sum(column: "_value")
+                    |> yield(name: "sum_per_min")
+                    '''
+
                     tables = query_api.query(flux_realtime_24)
-                    realtime_points = []  # list of {"time":..., "value": ...}
-                    # records will contain summed values per time
+
+                    realtime_points = []
                     for table in tables:
                         for rec in table.records:
-                            t_iso = rec.get_time().isoformat()
-                            val = rec.get_value()
                             try:
-                                realtime_points.append({"time": t_iso, "value": round(float(val), 3)})
-                            except Exception:
+                                realtime_points.append({
+                                    "time": rec.get_time().isoformat(),
+                                    "value": round(float(rec.get_value()), 3)
+                                })
+                            except:
                                 pass
-                    # keep chronological order
+
                     realtime_points = sorted(realtime_points, key=lambda x: x["time"])[-24:]
 
                     # -------------------------
@@ -305,50 +319,56 @@ from(bucket: "{BUCKET}")
                     weekly_pln = records_to_daily_energy(tables_pln)
                     weekly_solar = records_to_daily_energy(tables_solar)
 
-                    # -------------------------
-                    # 9) Overview per room: PM1..PM7 -> power (kWh today), AC, Lamp
-                    # Assumption: measurement plc_data has fields "ac" and "lamp" (boolean or 0/1).
-                    # If fields not present, we set None for AC/Lamp.
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 9) Overview per room: power, AC, lamp
+                    # ---------------------------------------------------------
                     overview = []
+
                     for dev in PM_GRID:
-                        # power per device today
+                        # Power today per device
                         flux_dev = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "power_meter_data" and r.device == "{dev}" and r._field == "kwh")
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-  |> integral(unit: 1h)
-  |> sum()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today())
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r.device == "{dev}"
+                        and r._field == "kwh"
+                    )
+                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                    |> integral(unit: 1h)
+                    |> sum()
+                    '''
                         tables_dev = query_api.query(flux_dev)
                         dev_kwh = 0.0
                         for table in tables_dev:
                             for rec in table.records:
                                 try:
                                     dev_kwh += float(rec.get_value())
-                                except Exception:
+                                except:
                                     pass
                         dev_kwh = round(dev_kwh, 3)
 
-                        # latest AC and lamp state (if present)
+                        # AC & lamp state
                         flux_state = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -2h)
-  |> filter(fn: (r) => r._measurement == "power_meter_data" and r.device == "{dev}" and (r._field == "ac" or r._field == "lamp"))
-  |> last()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -2h)
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r.device == "{dev}"
+                        and (r._field == "ac" or r._field == "lamp")
+                    )
+                    |> last()
+                    '''
                         tables_state = query_api.query(flux_state)
                         ac_state = None
                         lamp_state = None
+
                         for table in tables_state:
                             for rec in table.records:
-                                f = rec.get_field()
-                                v = rec.get_value()
-                                if f == "ac":
-                                    ac_state = bool(v) if v is not None else None
-                                if f == "lamp":
-                                    lamp_state = bool(v) if v is not None else None
+                                if rec.get_field() == "ac":
+                                    ac_state = bool(rec.get_value())
+                                elif rec.get_field() == "lamp":
+                                    lamp_state = bool(rec.get_value())
 
                         overview.append({
                             "device": dev,
@@ -357,22 +377,22 @@ from(bucket: "{BUCKET}")
                             "lamp": lamp_state
                         })
 
-                    # -------------------------
-                    # 10) System online/offline indicator:
-                    # Check latest timestamp of plc_data (any device). If last point older than threshold -> offline.
-                    # -------------------------
+                    # ---------------------------------------------------------
+                    # 10) System online/offline check
+                    # ---------------------------------------------------------
                     flux_last = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -10m)
-  |> filter(fn: (r) => r._measurement == "power_meter_data")
-  |> last()
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -10m)
+                    |> filter(fn: (r) => r._measurement == "power_meter_data")
+                    |> last()
+                    '''
+
                     tables = query_api.query(flux_last)
                     last_time = None
                     for table in tables:
                         for rec in table.records:
-                            # rec.get_time() returns datetime with tz
                             last_time = rec.get_time()
+
                     system_online = False
                     if last_time:
                         delta = now - last_time.astimezone(timezone.utc)
