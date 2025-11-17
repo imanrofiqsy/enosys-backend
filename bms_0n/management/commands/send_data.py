@@ -222,25 +222,27 @@ class Command(BaseCommand):
                         r._field == "kwh" and
                         r.device =~ /PM[1-7]/
                     )
+                    |> window(every: 1m)
 
                     first_vals = pm_data
-                    |> aggregateWindow(every: 1m, fn: first, createEmpty: false)
+                    |> first()
+                    |> duplicate(column: "_start", as: "win_start")
 
                     last_vals = pm_data
-                    |> aggregateWindow(every: 1m, fn: last, createEmpty: false)
+                    |> last()
+                    |> duplicate(column: "_start", as: "win_start")
 
                     join(
                     tables: {{f: first_vals, l: last_vals}},
-                    on: ["_time", "device"]
+                    on: ["win_start", "device"]
                     )
                     |> map(fn: (r) => ({{ 
-                            _time: r._time,
-                            hourly_kwh: r._value_l - r._value_f
+                            _time: r.win_start,
+                            diff_kwh: r._value_l - r._value_f
                     }}))
                     |> group(columns: ["_time"])
-                    |> sum(column: "hourly_kwh")
+                    |> sum(column: "diff_kwh")
                     '''
-
 
                     tables = query_api.query(flux_realtime_24)
 
