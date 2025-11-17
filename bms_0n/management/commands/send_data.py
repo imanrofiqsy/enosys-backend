@@ -54,7 +54,7 @@ class Command(BaseCommand):
                     flux_today = f'''
 from(bucket: "{BUCKET}")
   |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh")
+  |> filter(fn: (r) => r._measurement == "power_meter_data" and r._field == "kwh")
   |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
   |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
   |> integral(unit: 1h)
@@ -116,13 +116,13 @@ from(bucket: "{BUCKET}")
 
                     # -------------------------
                     # 5) alarms: active count and high priority
-                    # measurement: alarm_data
+                    # measurement: alarm_data_new
                     # assume fields: severity (string), status (string)
                     # -------------------------
                     flux_alarms_active = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "alarm_data")
+  |> filter(fn: (r) => r._measurement == "alarm_data_new")
   |> filter(fn: (r) => r._field == "status" and r._value == "active")
   |> count()
 '''
@@ -138,7 +138,7 @@ from(bucket: "{BUCKET}")
                     flux_alarms_high = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "alarm_data")
+  |> filter(fn: (r) => r._measurement == "alarm_data_new")
   |> filter(fn: (r) => r._field == "severity")
   |> filter(fn: (r) => r._value == "High" or r._value == "Critical")
   |> count()
@@ -158,7 +158,7 @@ from(bucket: "{BUCKET}")
                     flux_solar_today = f'''
 from(bucket: "{BUCKET}")
   |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r.device == "{PM_SOLAR}" and r._field == "kwh")
+  |> filter(fn: (r) => r._measurement == "power_meter_data" and r.device == "{PM_SOLAR}" and r._field == "kwh")
   |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
   |> integral(unit: 1h)
   |> sum()
@@ -181,7 +181,7 @@ from(bucket: "{BUCKET}")
                     flux_pln_today = f'''
 from(bucket: "{BUCKET}")
   |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and (r.device =~ /PM[1-7]/) and r._field == "kwh")
+  |> filter(fn: (r) => r._measurement == "power_meter_data" and (r.device =~ /PM[1-7]/) and r._field == "kwh")
   |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
   |> integral(unit: 1h)
   |> sum()
@@ -208,7 +208,7 @@ from(bucket: "{BUCKET}")
                     flux_realtime_24 = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -24m)
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh")
+  |> filter(fn: (r) => r._measurement == "power_meter_data" and r._field == "kwh")
   |> filter(fn: (r) => r.device =~ /PM[1-7]/)
   |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
   |> group(columns: ["_time"])
@@ -234,55 +234,70 @@ from(bucket: "{BUCKET}")
                     # -------------------------
                     # Simpler approach: query per-day sums for pln and solar separately
                     flux_weekly_pln = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -7d)
-  |> filter(fn: (r) =>
-      r._measurement == "new_pm_data" and
-      r._field == "kwh" and
-      r.device =~ /PM[1-7]/
-  )
-  |> aggregateWindow(every: 1h, fn: mean)
-  |> integral(unit: 1h)
-  |> keep(columns: ["_time", "_value", "device"])
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -7d)
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh" and
+                        r.device =~ /PM[1-7]/
+                    )
+                    |> keep(columns: ["_time", "_value", "device"])
+                    '''
 
                     flux_weekly_solar = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -7d)
-  |> filter(fn: (r) =>
-      r._measurement == "new_pm_data" and
-      r._field == "kwh" and
-      r.device == "{PM_SOLAR}"
-  )
-  |> aggregateWindow(every: 1h, fn: mean)
-  |> integral(unit: 1h)
-  |> keep(columns: ["_time", "_value", "device"])
-'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -7d)
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh" and
+                        r.device == "{PM_SOLAR}"
+                    )
+                    |> keep(columns: ["_time", "_value", "device"])
+                    '''
+
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
+
                     def records_to_daily_energy(tables):
-                        daymap = {}
+                        # Simpan per device
+                        data_per_device = {}
 
                         for table in tables:
                             for rec in table.records:
-                                try:
-                                    t = rec.get_time().astimezone(timezone.utc).date()
-                                except KeyError:
-                                    # fallback: gunakan tanggal hari ini kalau _time tidak ada
-                                    t = datetime.now(timezone.utc).date()
+                                device = rec.values.get("device")
+                                t = rec.get_time().astimezone(timezone.utc).date()
                                 val = float(rec.get_value() or 0)
 
-                                daymap[str(t)] = daymap.get(str(t), 0) + val
+                                if device not in data_per_device:
+                                    data_per_device[device] = {}
 
-                        # Build 7-day output
+                                # simpan setiap sample berdasarkan tanggal
+                                if t not in data_per_device[device]:
+                                    data_per_device[device][t] = []
+
+                                data_per_device[device][t].append(val)
+
+                        # hitung energi per hari
+                        day_energy = {}
+
+                        for device, days in data_per_device.items():
+                            for day, values in days.items():
+                                # kWh cumulative → daily energy = last - first
+                                energy = max(values) - min(values)
+
+                                day_str = str(day)
+                                day_energy[day_str] = day_energy.get(day_str, 0) + energy
+
+                        # format output 7 hari terakhir
                         today = datetime.now(timezone.utc).date()
                         out = []
 
                         for offset in reversed(range(7)):
                             day = today - timedelta(days=offset)
+                            day_str = str(day)
                             out.append({
-                                "date": str(day),
-                                "value": round(daymap.get(str(day), 0.0), 3)
+                                "date": day_str,
+                                "value": round(day_energy.get(day_str, 0.0), 3)
                             })
 
                         return out
@@ -301,7 +316,7 @@ from(bucket: "{BUCKET}")
                         flux_dev = f'''
 from(bucket: "{BUCKET}")
   |> range(start: today())
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r.device == "{dev}" and r._field == "kwh")
+  |> filter(fn: (r) => r._measurement == "power_meter_data" and r.device == "{dev}" and r._field == "kwh")
   |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
   |> integral(unit: 1h)
   |> sum()
@@ -320,7 +335,7 @@ from(bucket: "{BUCKET}")
                         flux_state = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -2h)
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r.device == "{dev}" and (r._field == "ac" or r._field == "lamp"))
+  |> filter(fn: (r) => r._measurement == "power_meter_data" and r.device == "{dev}" and (r._field == "ac" or r._field == "lamp"))
   |> last()
 '''
                         tables_state = query_api.query(flux_state)
@@ -349,7 +364,7 @@ from(bucket: "{BUCKET}")
                     flux_last = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -10m)
-  |> filter(fn: (r) => r._measurement == "new_pm_data")
+  |> filter(fn: (r) => r._measurement == "power_meter_data")
   |> last()
 '''
                     tables = query_api.query(flux_last)
@@ -427,19 +442,6 @@ from(bucket: "{BUCKET}")
                                 "data": data,
                             },
                         )
-
-                    # --- Loop setelah send() didefinisikan ---
-                    sample_val = None
-
-                    for table in tables_pln:
-                        for rec in table.records:
-                            sample_val = {
-                                "value": rec.values["_value"]
-                            }
-                            break
-                        break
-
-                    send("ping", {"value": sample_val})
 
                     send("power_summary", power_summary)
                     send("alarms_status", alarms_status)

@@ -34,20 +34,29 @@ class Command(BaseCommand):
                 timestamp = datetime.now(timezone.utc)
 
                 # === 1) Generate Power Meter Dummy Data ===
+                # simpan counter di class
+                if not hasattr(self, "kwh_counters"):
+                    self.kwh_counters = {f"PM{i}": 1000.0 for i in range(1, 9)}
+
                 power_points = []
-                for i in range(1, 9):  # PM1 sampai PM8
-                    kwh = round(random.uniform(1000, 2000), 3)
+                for i in range(1, 9):
+                    device = f"PM{i}"
+
+                    # naik 0.01 – 0.05 kWh tiap interval
+                    delta = random.uniform(0.01, 0.05)
+                    self.kwh_counters[device] += delta
+                    kwh = round(self.kwh_counters[device], 3)
+
                     voltage = round(random.uniform(210, 240), 2)
                     ampere = round(random.uniform(5, 25), 2)
                     temperature = round(random.uniform(30, 80), 2)
-
-                    ac = round(random.uniform(0, 1))  # 0 or 1 for AC status
-                    lamp = round(random.uniform(0, 1))  # 0 or 1 for Lamp status
+                    ac = round(random.uniform(0, 1))
+                    lamp = round(random.uniform(0, 1))
 
                     point = (
-                        Point("new_pm_data")
-                        .tag("device", f"PM{i}")
-                        .field("kwh", kwh)
+                        Point("power_meter_data")
+                        .tag("device", device)
+                        .field("kwh", kwh)  # cumulative!
                         .field("voltage", voltage)
                         .field("ampere", ampere)
                         .field("temperature", temperature)
@@ -73,7 +82,7 @@ class Command(BaseCommand):
                     actions = ["Investigate", "Restart", "Ignore", "Shutdown"]
 
                     alarm_point = (
-                        Point("alarm_data")
+                        Point("alarm_data_new")
                         .field("timestamp", timestamp.isoformat())
                         .field("source", random.choice(sources))
                         .field("severity", random.choice(severities))
