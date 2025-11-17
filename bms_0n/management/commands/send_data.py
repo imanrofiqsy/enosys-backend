@@ -224,23 +224,23 @@ class Command(BaseCommand):
                     )
 
                     first_vals = pm_data
-                    |> aggregateWindow(every: 1m, fn: first, createEmpty: false)
+                    |> aggregateWindow(every: 1h, fn: first, createEmpty: false)
 
                     last_vals = pm_data
-                    |> aggregateWindow(every: 1m, fn: last, createEmpty: false)
+                    |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
 
                     join(
                     tables: {{f: first_vals, l: last_vals}},
                     on: ["_time", "device"]
                     )
-                    |> map(fn: (r) => ({
+                    |> map(fn: (r) => ({{ 
                             _time: r._time,
-                            _value: r._value_l - r._value_f
-                    }))
+                            hourly_kwh: r._value_l - r._value_f
+                    }}))
                     |> group(columns: ["_time"])
-                    |> sum(column: "_value")
-                    |> sort(columns: ["_time"])
+                    |> sum(column: "hourly_kwh")
                     '''
+
 
                     tables = query_api.query(flux_realtime_24)
 
