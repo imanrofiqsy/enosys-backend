@@ -185,65 +185,33 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     # PLN today (PM1..PM7) for solar share
                     # ---------------------------------------------------------
-                    flux_pln_today = f'''
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today())
-                    |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r._field == "kwh"
-                        and r.device =~ /PM[1-7]/
-                    )
-                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                    |> integral(unit: 1h)
-                    |> sum()
-                    '''
-
-                    tables = query_api.query(flux_pln_today)
-                    pln_today_kwh = 0.0
-                    for table in tables:
-                        for rec in table.records:
-                            try:
-                                pln_today_kwh += float(rec.get_value())
-                            except:
-                                pass
-                    pln_today_kwh = round(pln_today_kwh, 3)
-
-                    total_load = solar_today_kwh + pln_today_kwh
-                    solar_share_pct = round((solar_today_kwh / total_load) * 100.0, 2) if total_load > 0 else 0.0
-
-                    # ---------------------------------------------------------
-                    # 7) Realtime chart: Hourly difference total power (PM1..PM7)
-                    # ---------------------------------------------------------
                     flux_realtime_24 = f'''
-                    from(bucket: "{BUCKET}")
+                    pm_data = from(bucket: "{BUCKET}")
                     |> range(start: -24h)
                     |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r._field == "kwh"
-                        and r.device =~ /PM[1-7]/
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh" and
+                        r.device =~ /PM[1-7]/
                     )
-                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                    |> group(columns: ["_time"])
-                    |> filter(fn: (r) => exists r._value and r._value != null)
-                    |> count(column: "_value")
-                    |> filter(fn: (r) => r._value == 60)
-                    |> drop(columns: ["_value"])
-                    |> join(tables: {{
-                        "data": from(bucket: "{BUCKET}")
-                        |> range(start: -24h)
-                        |> filter(fn: (r) =>
-                            r._measurement == "power_meter_data"
-                            and r._field == "kwh"
-                            and r.device =~ /PM[1-7]/
-                        )
-                        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                        |> group(columns: ["_time"])
-                        |> difference(columns: ["_value"])
-                        |> sum(column: "_value")
-                    }}, on: ["_time"])
-                    |> yield(name: "hourly_difference")
-                    '''
 
+                    first_vals = pm_data
+                    |> aggregateWindow(every: 1h, fn: first, createEmpty: false)
+
+                    last_vals = pm_data
+                    |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
+
+                    join(
+                    tables: {{f: first_vals, l: last_vals}},
+                    on: ["_time", "device"]
+                    )
+                    |> map(fn: (r) => ({
+                            _time: r._time,
+                            _value: r._value_l - r._value_f
+                    }))
+                    |> group(columns: ["_time"])
+                    |> sum(column: "_value")
+                    |> sort(columns: ["_time"])
+                    '''
                     tables = query_api.query(flux_realtime_24)
 
                     realtime_points = []
