@@ -215,33 +215,17 @@ class Command(BaseCommand):
                     # 7) Realtime chart: Minute-by-minute difference total power (PM1..PM7)
                     # ---------------------------------------------------------
                     flux_realtime_24 = f'''
-                    pm_data = from(bucket: "{BUCKET}")
+                    from(bucket: "{BUCKET}")
                     |> range(start: -24h)
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
                         r._field == "kwh" and
                         r.device =~ /PM[1-7]/
                     )
-                    |> window(every: 1m)
-
-                    first_vals = pm_data
-                    |> first()
-                    |> duplicate(column: "_start", as: "win_start")
-
-                    last_vals = pm_data
-                    |> last()
-                    |> duplicate(column: "_start", as: "win_start")
-
-                    join(
-                    tables: {{f: first_vals, l: last_vals}},
-                    on: ["win_start", "device"]
-                    )
-                    |> map(fn: (r) => ({{ 
-                            _time: r.win_start,
-                            diff_kwh: r._value_l - r._value_f
-                    }}))
+                    |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+                    |> difference(column: "_value")
                     |> group(columns: ["_time"])
-                    |> sum(column: "diff_kwh")
+                    |> sum(column: "_value")
                     '''
 
                     tables = query_api.query(flux_realtime_24)
