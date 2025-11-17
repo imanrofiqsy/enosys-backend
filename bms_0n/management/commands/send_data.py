@@ -269,7 +269,8 @@ from(bucket: "{BUCKET}")
                                 record_value = rec.get_value()
                                 try:
                                     t = rec.get_time().astimezone(timezone.utc).date()
-                                except Exception:
+                                except KeyError:
+                                    # fallback: gunakan tanggal hari ini kalau _time tidak ada
                                     t = datetime.now(timezone.utc).date()
                                 val = float(rec.get_value() or 0)
 
