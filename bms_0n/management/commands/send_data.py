@@ -434,7 +434,7 @@ from(bucket: "{BUCKET}")
                     for table in tables_pln:
                         for rec in table.records:
                             sample_val = {
-                                "value": rec
+                                "value": rec.values()
                             }
                             break
                         break
