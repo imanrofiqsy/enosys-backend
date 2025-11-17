@@ -1,4 +1,5 @@
 import logging
+logging.basicConfig(level=logging.INFO)
 import math
 from datetime import datetime, timezone, timedelta
 
@@ -265,7 +266,7 @@ from(bucket: "{BUCKET}")
 
                         for table in tables:
                             for rec in table.records:
-                                logger.info("value: ", rec.values)
+                                logging.info("value: ", rec.values)
                                 t = rec.get_time().astimezone(timezone.utc).date()
                                 val = float(rec.get_value() or 0)
 
