@@ -485,6 +485,7 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
+                    send("ping", realtime_chart)
                     
 
                 except Exception as e:
