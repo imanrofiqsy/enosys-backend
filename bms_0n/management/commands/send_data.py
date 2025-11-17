@@ -434,7 +434,6 @@ from(bucket: "{BUCKET}")
                     for table in tables_pln:
                         for rec in table.records:
                             sample_val = {
-                                "time": str(rec.get_time()),
                                 "value": rec.get_value(),
                                 "device": rec.values.get("device")
                             }
