@@ -419,7 +419,7 @@ from(bucket: "{BUCKET}")
                         "system_online": system_online,
                     })
 
-                    for table in weekly_pln:
+                    for table in tables_pln:
                         for rec in table.records:
                             record_value = rec.get_value()  # --- IGNORE ---
                             send("ping", {"value": record_value})  # --- IGNORE ---
