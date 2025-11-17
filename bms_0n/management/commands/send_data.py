@@ -231,79 +231,60 @@ from(bucket: "{BUCKET}")
                     # -------------------------
                     # 8) PLN vs Solar per day for last 7 days
                     # -------------------------
-                    # group by 1d windows, sum integrals
-                    flux_weekly = f'''
-from(bucket: "{BUCKET}")
-  |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "new_pm_data" and r._field == "kwh")
-  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
-  |> integral(unit: 1d)
-  |> group(columns: ["device"])
-  |> sum()
-'''
-                    tables = query_api.query(flux_weekly)
-                    # We'll aggregate client-side by day for PM1-7 and PM8
                     # Simpler approach: query per-day sums for pln and solar separately
                     flux_weekly_pln = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "new_pm_data"
-                   and r._field == "kwh"
-                   and r.device =~ /PM[1-7]/)
-  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+  |> filter(fn: (r) =>
+      r._measurement == "new_pm_data" and
+      r._field == "kwh" and
+      r.device =~ /PM[1-7]/
+  )
+  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+  |> integral(unit: 1h)
+  |> group(columns: ["device"])
 '''
-                    
-#   |> integral(unit: 1h)
-#   |> sum()
+
                     flux_weekly_solar = f'''
 from(bucket: "{BUCKET}")
   |> range(start: -7d)
-  |> filter(fn: (r) => r._measurement == "new_pm_data"
-                   and r._field == "kwh"
-                   and r.device == "{PM_SOLAR}")
-  |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+  |> filter(fn: (r) =>
+      r._measurement == "new_pm_data" and
+      r._field == "kwh" and
+      r.device == "{PM_SOLAR}"
+  )
+  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+  |> integral(unit: 1h)
+  |> group(columns: ["device"])
 '''
-                    
-#   |> integral(unit: 1h)
-#   |> sum()
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
 
-                    # Note: depending on how your Influx stores series per day, these sums may be single records.
-                    # We'll attempt to get up to 7 points; if fewer, we'll pad zeros for missing days.
-                    def records_to_daylist(tables):
+                    def records_to_daily_energy(tables):
                         daymap = {}
+
                         for table in tables:
                             for rec in table.records:
-                                # handle kasus record tidak punya kolom _time
-                                try:
-                                    t = rec.get_time().astimezone(timezone.utc).date()
-                                except KeyError:
-                                    # fallback: gunakan tanggal hari ini kalau _time tidak ada
-                                    t = datetime.now(timezone.utc).date()
-                                
-                                try:
-                                    val = float(rec.get_value())
-                                    if str(t) in daymap:
-                                        daymap[str(t)] += val  # kalau ada beberapa record di hari sama, jumlahkan
-                                    else:
-                                        daymap[str(t)] = val
-                                except Exception:
-                                    pass
+                                t = rec.get_time().astimezone(timezone.utc).date()
+                                val = float(rec.get_value() or 0)
 
-                        # siapkan list 7 hari terakhir (dari yang paling lama ke terbaru)
-                        now = datetime.now(timezone.utc)
+                                daymap[str(t)] = daymap.get(str(t), 0) + val
+
+                        # Build 7-day output
+                        today = datetime.now(timezone.utc).date()
                         out = []
-                        for d in (now.date() - timedelta(days=i) for i in reversed(range(7))):
+
+                        for offset in reversed(range(7)):
+                            day = today - timedelta(days=offset)
                             out.append({
-                                "date": str(d),
-                                "value": round(daymap.get(str(d), 0.0), 3)
+                                "date": str(day),
+                                "value": round(daymap.get(str(day), 0.0), 3)
                             })
 
                         return out
 
-                    weekly_pln = records_to_daylist(tables_pln)
-                    weekly_solar = records_to_daylist(tables_solar)
+                    weekly_pln = records_to_daily_energy(tables_pln)
+                    weekly_solar = records_to_daily_energy(tables_solar)
 
                     # -------------------------
                     # 9) Overview per room: PM1..PM7 -> power (kWh today), AC, Lamp
