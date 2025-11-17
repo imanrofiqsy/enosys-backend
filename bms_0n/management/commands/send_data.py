@@ -238,7 +238,7 @@ class Command(BaseCommand):
                             hourly_kwh: r._value_l - r._value_f
                     }}))
                     |> group(columns: ["_time"])
-                    |> sum(column: "_value")
+                    |> sum(column: "_kwh")
                     '''
 
 
