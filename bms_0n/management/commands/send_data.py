@@ -265,6 +265,7 @@ from(bucket: "{BUCKET}")
 
                         for table in tables:
                             for rec in table.records:
+                                logger.info("value: ", rec.values)
                                 t = rec.get_time().astimezone(timezone.utc).date()
                                 val = float(rec.get_value() or 0)
 
