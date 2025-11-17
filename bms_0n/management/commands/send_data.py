@@ -260,13 +260,13 @@ from(bucket: "{BUCKET}")
 '''
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
-
+                    record_value = {}
                     def records_to_daily_energy(tables):
                         daymap = {}
 
                         for table in tables:
                             for rec in table.records:
-                                logging.info("value: ", rec.values)
+                                record_value = rec.get_value()
                                 t = rec.get_time().astimezone(timezone.utc).date()
                                 val = float(rec.get_value() or 0)
 
@@ -418,8 +418,7 @@ from(bucket: "{BUCKET}")
                     })
 
                     ping = safe_json({
-                        "pln": tables_pln,
-                        "solar": tables_solar,
+                        "value": record_value,
                     })
 
                     # --- Kirim satu per satu ---
