@@ -222,8 +222,8 @@ class Command(BaseCommand):
                         r._field == "kwh" and
                         r.device =~ /PM[1-7]/
                     )
-                    |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
-                    |> difference(column: "_value")
+                    |> aggregateWindow(every: 1m, fn: last, createEmpty: false)
+                    |> difference(columns: ["_value"])
                     |> group(columns: ["_time"])
                     |> sum(column: "_value")
                     '''
