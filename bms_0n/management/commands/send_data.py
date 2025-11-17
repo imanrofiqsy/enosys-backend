@@ -212,20 +212,21 @@ class Command(BaseCommand):
                     solar_share_pct = round((solar_today_kwh / total_load) * 100.0, 2) if total_load > 0 else 0.0
 
                     # ---------------------------------------------------------
-                    # 7) Realtime chart: 24 points total power (PM1..PM7)
+                    # 7) Realtime chart: Hourly difference total power (PM1..PM7)
                     # ---------------------------------------------------------
                     flux_realtime_24 = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: -24m)
+                    |> range(start: -24h)
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data"
                         and r._field == "kwh"
                         and r.device =~ /PM[1-7]/
                     )
-                    |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
                     |> group(columns: ["_time"])
+                    |> difference(columns: ["_value"])
                     |> sum(column: "_value")
-                    |> yield(name: "sum_per_min")
+                    |> yield(name: "hourly_difference")
                     '''
 
                     tables = query_api.query(flux_realtime_24)
