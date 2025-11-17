@@ -442,7 +442,7 @@ from(bucket: "{BUCKET}")
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    send("ping", record_value)
+                    send("ping", {"value": record_value})
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
