@@ -260,13 +260,13 @@ from(bucket: "{BUCKET}")
 '''
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
-                    record_value = {}
                     def records_to_daily_energy(tables):
                         daymap = {}
 
                         for table in tables:
                             for rec in table.records:
                                 record_value = rec.get_value()
+                                send("ping", {"value": record_value})
                                 try:
                                     t = rec.get_time().astimezone(timezone.utc).date()
                                 except KeyError:
@@ -421,10 +421,6 @@ from(bucket: "{BUCKET}")
                         "system_online": system_online,
                     })
 
-                    ping = safe_json({
-                        "value": record_value,
-                    })
-
                     # --- Kirim satu per satu ---
                     def send(topic, data):
                         async_to_sync(channel_layer.group_send)(
@@ -442,7 +438,7 @@ from(bucket: "{BUCKET}")
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    send("ping", {"value": record_value})
+                    
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
