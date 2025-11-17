@@ -265,8 +265,6 @@ from(bucket: "{BUCKET}")
 
                         for table in tables:
                             for rec in table.records:
-                                record_value = rec.get_value()
-                                send("ping", {"value": record_value})
                                 try:
                                     t = rec.get_time().astimezone(timezone.utc).date()
                                 except KeyError:
