@@ -185,33 +185,49 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     # PLN today (PM1..PM7) for solar share
                     # ---------------------------------------------------------
-                    flux_realtime_24 = f'''
-                    pm_data = from(bucket: "{BUCKET}")
-                    |> range(start: -24h)
+                    flux_pln_today = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today())
                     |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data" and
-                        r._field == "kwh" and
-                        r.device =~ /PM[1-7]/
+                        r._measurement == "power_meter_data"
+                        and r._field == "kwh"
+                        and r.device =~ /PM[1-7]/
                     )
+                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                    |> integral(unit: 1h)
+                    |> sum()
+                    '''
 
-                    first_vals = pm_data
-                    |> aggregateWindow(every: 1h, fn: first, createEmpty: false)
+                    tables = query_api.query(flux_pln_today)
+                    pln_today_kwh = 0.0
+                    for table in tables:
+                        for rec in table.records:
+                            try:
+                                pln_today_kwh += float(rec.get_value())
+                            except:
+                                pass
+                    pln_today_kwh = round(pln_today_kwh, 3)
 
-                    last_vals = pm_data
-                    |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
+                    total_load = solar_today_kwh + pln_today_kwh
+                    solar_share_pct = round((solar_today_kwh / total_load) * 100.0, 2) if total_load > 0 else 0.0
 
-                    join(
-                    tables: {{f: first_vals, l: last_vals}},
-                    on: ["_time", "device"]
+                    # ---------------------------------------------------------
+                    # 7) Realtime chart: 24 points total power (PM1..PM7)
+                    # ---------------------------------------------------------
+                    flux_realtime_24 = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -24m)
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r._field == "kwh"
+                        and r.device =~ /PM[1-7]/
                     )
-                    |> map(fn: (r) => ({
-                            _time: r._time,
-                            _value: r._value_l - r._value_f
-                    }))
+                    |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
                     |> group(columns: ["_time"])
                     |> sum(column: "_value")
-                    |> sort(columns: ["_time"])
+                    |> yield(name: "sum_per_min")
                     '''
+
                     tables = query_api.query(flux_realtime_24)
 
                     realtime_points = []
