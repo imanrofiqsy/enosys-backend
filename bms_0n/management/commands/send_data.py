@@ -224,10 +224,10 @@ class Command(BaseCommand):
                     )
 
                     first_vals = pm_data
-                    |> aggregateWindow(every: 1h, fn: first, createEmpty: false)
+                    |> aggregateWindow(every: 1m, fn: first, createEmpty: false)
 
                     last_vals = pm_data
-                    |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
+                    |> aggregateWindow(every: 1m, fn: last, createEmpty: false)
 
                     join(
                     tables: {{f: first_vals, l: last_vals}},
