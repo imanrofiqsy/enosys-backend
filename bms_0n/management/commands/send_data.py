@@ -419,6 +419,11 @@ from(bucket: "{BUCKET}")
                         "system_online": system_online,
                     })
 
+                    for table in weekly_pln:
+                        for rec in table.records:
+                            record_value = rec.get_value()  # --- IGNORE ---
+                            send("ping", {"value": record_value})  # --- IGNORE ---
+
                     # --- Kirim satu per satu ---
                     def send(topic, data):
                         async_to_sync(channel_layer.group_send)(
