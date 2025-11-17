@@ -224,8 +224,23 @@ class Command(BaseCommand):
                     )
                     |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
                     |> group(columns: ["_time"])
-                    |> difference(columns: ["_value"])
-                    |> sum(column: "_value")
+                    |> filter(fn: (r) => exists r._value and r._value != null)
+                    |> count(column: "_value")
+                    |> filter(fn: (r) => r._value == 60)
+                    |> drop(columns: ["_value"])
+                    |> join(tables: {{
+                        "data": from(bucket: "{BUCKET}")
+                        |> range(start: -24h)
+                        |> filter(fn: (r) =>
+                            r._measurement == "power_meter_data"
+                            and r._field == "kwh"
+                            and r.device =~ /PM[1-7]/
+                        )
+                        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                        |> group(columns: ["_time"])
+                        |> difference(columns: ["_value"])
+                        |> sum(column: "_value")
+                    }}, on: ["_time"])
                     |> yield(name: "hourly_difference")
                     '''
 
