@@ -419,12 +419,6 @@ from(bucket: "{BUCKET}")
                         "system_online": system_online,
                     })
 
-                    for table in tables_pln:
-                        for rec in table.records:
-                            record_value = rec.get_value()  # --- IGNORE ---
-                            send("ping", {"value": record_value})  # --- IGNORE ---
-
-                    # --- Kirim satu per satu ---
                     def send(topic, data):
                         async_to_sync(channel_layer.group_send)(
                             group_name,
@@ -433,6 +427,21 @@ from(bucket: "{BUCKET}")
                                 "data": data,
                             },
                         )
+
+                    # --- Loop setelah send() didefinisikan ---
+                    sample_val = None
+
+                    for table in tables_pln:
+                        for rec in table.records:
+                            sample_val = {
+                                "time": str(rec.get_time()),
+                                "value": rec.get_value(),
+                                "device": rec.values.get("device")
+                            }
+                            break
+                        break
+
+                    send("ping", {"value": sample_val})
 
                     send("power_summary", power_summary)
                     send("alarms_status", alarms_status)
