@@ -240,9 +240,9 @@ from(bucket: "{BUCKET}")
       r._field == "kwh" and
       r.device =~ /PM[1-7]/
   )
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+  |> aggregateWindow(every: 1h, fn: mean)
   |> integral(unit: 1h)
-  |> group(columns: ["device"])
+  |> keep(columns: ["_time", "_value", "device"])
 '''
 
                     flux_weekly_solar = f'''
@@ -253,9 +253,9 @@ from(bucket: "{BUCKET}")
       r._field == "kwh" and
       r.device == "{PM_SOLAR}"
   )
-  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+  |> aggregateWindow(every: 1h, fn: mean)
   |> integral(unit: 1h)
-  |> group(columns: ["device"])
+  |> keep(columns: ["_time", "_value", "device"])
 '''
                     tables_pln = query_api.query(flux_weekly_pln)
                     tables_solar = query_api.query(flux_weekly_solar)
