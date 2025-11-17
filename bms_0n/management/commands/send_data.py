@@ -267,7 +267,10 @@ from(bucket: "{BUCKET}")
                         for table in tables:
                             for rec in table.records:
                                 record_value = rec.get_value()
-                                t = rec.get_time().astimezone(timezone.utc).date()
+                                try:
+                                    t = rec.get_time().astimezone(timezone.utc).date()
+                                except Exception:
+                                    t = datetime.now(timezone.utc).date()
                                 val = float(rec.get_value() or 0)
 
                                 daymap[str(t)] = daymap.get(str(t), 0) + val
