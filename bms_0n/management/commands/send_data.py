@@ -73,28 +73,36 @@ class Command(BaseCommand):
                     # 2) Total power usage yesterday (kWh)
                     # ---------------------------------------------------------
                     flux_yesterday = f'''
-                    import timezone
-                    option location = timezone(location: "Asia/Jakarta")
+                    import "date"
+                    import "timezone"
+                    option location = timezone.location(name: "Asia/Jakarta")
 
-                    start = 2025-11-16T00:00:00Z
-                    stop  = 2025-11-17T00:00:00Z
+                    startYesterday = date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
+                    startTwoDaysAgo = date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d)
 
-                    daily = from(bucket: "{BUCKET}")
-                    |> range(start: start, stop: stop)
+                    data = from(bucket: "{BUCKET}")
+                    |> range(start: startTwoDaysAgo, stop: startYesterday)
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
-                        r._field == "kwh"
+                        r._field == "kwh" and
+                        contains(value: r.device, set: {pm_flux_array})
                     )
-                    |> group(columns: ["device"])           // pisahkan per PM
-                    |> aggregateWindow(every: 1d, fn: last, createEmpty: false)
-                    |> sort(columns: ["_time"])
-                    |> difference(nonNegative: true)        // hitung selisih akhir-awal hari per device
-                    |> rename(columns: {{_value: "kwh_daily"}})
 
-                    daily
-                    |> group()                               // gabungkan semua PM
-                    |> sum(column: "kwh_daily")               // total kWh semua power meter
-                    |> rename(columns: {{_value: "total_kwh_all_pm"}})
+                    firstVals = data
+                    |> first()
+
+                    lastVals = data
+                    |> last()
+
+                    join(
+                    tables: {{f: firstVals, l: lastVals}},
+                    on: ["device"]
+                    )
+                    |> map(fn: (r) => ({{
+                        device: r.device,
+                        diff: r._value_l - r._value_f
+                    }}))
+                    |> sum(column: "diff")
 
                     '''
 
@@ -103,7 +111,7 @@ class Command(BaseCommand):
                     for table in tables:
                         for rec in table.records:
                             try:
-                                total_yesterday_kwh = float(rec.get_value())
+                                total_yesterday_kwh += float(rec.get_value())
                             except:
                                 pass
                     total_yesterday_kwh = round(total_yesterday_kwh, 3)
@@ -479,25 +487,6 @@ class Command(BaseCommand):
                             },
                         )
 
-                    flux_dummy = f'''
-                    data = from(bucket: "{BUCKET}")
-                    |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data" and
-                        r._field == "kwh" and
-                        contains(value: r.device, set: {pm_flux_array})
-                    )
-                    '''
-
-                    tables = query_api.query(flux_dummy)
-                    dummy = 0
-                    for table in tables:
-                        for record in table.records:
-                            dummy += float(record.get_value())
-
-                    ping = safe_json({
-                        "dummy": total_yesterday_kwh
-                    })
-
                     send("power_summary", power_summary)
                     send("alarms_status", alarms_status)
                     send("solar_data", solar_data)
@@ -505,7 +494,7 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    send("ping", ping)
+                    # send("ping", ping)
                     
 
                 except Exception as e:
