@@ -494,7 +494,11 @@ class Command(BaseCommand):
                     dummy = []
                     for table in tables:
                         for record in table.records:
-                            dummy.append(record.get_value())
+                            dummy.append({
+                                "time": record.get_time(),
+                                "device": record.values.get("device"),
+                                "value": record.get_value()
+                            })
 
                     ping = safe_json({
                         "dummy": dummy
