@@ -75,7 +75,7 @@ class Command(BaseCommand):
                     flux_yesterday = f'''
                     import "date"
 
-                    kwh_daily = from(bucket: "YOUR_BUCKET")
+                    kwh_daily = from(bucket: "{BUCKET}")
                     |> range(start: date.sub(from: now(), d: 2d), stop: now())
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
