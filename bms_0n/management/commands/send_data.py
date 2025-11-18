@@ -433,6 +433,8 @@ class Command(BaseCommand):
                             return {k: fix_value(v) for k, v in data.items()}
                         elif isinstance(data, list):
                             return [fix_value(v) for v in data]
+                        elif isinstance(data, datetime.datetime):
+                            return data.isoformat()
                         return data
 
                     # --- 1) Power Summary ---
