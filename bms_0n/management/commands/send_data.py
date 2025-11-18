@@ -73,26 +73,28 @@ class Command(BaseCommand):
                     # 2) Total power usage yesterday (kWh)
                     # ---------------------------------------------------------
                     flux_yesterday = f'''
-                    import "date"
+                    import timezone
+                    option location = timezone(location: "Asia/Jakarta")
 
-                    kwh_daily = from(bucket: "{BUCKET}")
-                    |> range(start: date.sub(from: now(), d: 2d), stop: now())
+                    start = 2025-11-16T00:00:00Z
+                    stop  = 2025-11-17T00:00:00Z
+
+                    daily = from(bucket: "{BUCKET}")
+                    |> range(start: start, stop: stop)
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
                         r._field == "kwh"
                     )
-                    |> aggregateWindow(every: 1d, fn: last)
+                    |> group(columns: ["device"])           // pisahkan per PM
+                    |> aggregateWindow(every: 1d, fn: last, createEmpty: false)
                     |> sort(columns: ["_time"])
+                    |> difference(nonNegative: true)        // hitung selisih akhir-awal hari per device
+                    |> rename(columns: {{_value: "kwh_daily"}})
 
-                    first = kwh_daily |> first()
-                    second = kwh_daily |> last()
-
-                    join(
-                        tables: {{a:first, b:second}},
-                        on: ["_start","_stop"],
-                    )
-                    |> map(fn: (r) => ({{ r with _value: r._value_b - r._value_a }}))
-                    |> rename(columns: {{_value: "kwh_yesterday"}})
+                    daily
+                    |> group()                               // gabungkan semua PM
+                    |> sum(column: "kwh_daily")               // total kWh semua power meter
+                    |> rename(columns: {{_value: "total_kwh_all_pm"}})
 
                     '''
 
@@ -493,7 +495,7 @@ class Command(BaseCommand):
                             dummy += float(record.get_value())
 
                     ping = safe_json({
-                        "dummy": dummy
+                        "dummy": total_yesterday_kwh
                     })
 
                     send("power_summary", power_summary)
