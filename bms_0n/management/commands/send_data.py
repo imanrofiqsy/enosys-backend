@@ -497,6 +497,7 @@ class Command(BaseCommand):
                     for table in tables:
                         for record in table.records:
                             dummy.append({
+                                "time": record.values.get("time"),
                                 "device": record.values.get("device"),
                                 "value": record.get_value()
                             })
