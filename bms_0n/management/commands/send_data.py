@@ -483,18 +483,18 @@ class Command(BaseCommand):
                             },
                         )
 
-                    flux_yesterday = f'''
+                    flux_dummy = f'''
                     from(bucket: "{BUCKET}")
                     |> range(start: -48h)
                     |> filter(fn: (r) => r._field == "kwh")
                     |> limit(n: 10)
                     '''
 
-                    tables = query_api.query(flux_yesterday)
+                    tables = query_api.query(flux_dummy)
                     dummy = []
                     for table in tables:
                         for record in table.records:
-                            dummy.append({record.get_value()})
+                            dummy.append(record.get_value())
 
                     ping = safe_json({
                         "dummy": dummy
