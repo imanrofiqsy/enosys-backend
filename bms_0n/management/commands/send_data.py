@@ -464,6 +464,13 @@ class Command(BaseCommand):
                             },
                         )
 
+                    ping = safe_json({
+                        "total_yesterday_kwh": total_yesterday_kwh,
+                        "total_yesterday_cost": total_yesterday_cost,
+                        "pct_power": pct_power,
+                        "pct_cost": pct_cost,
+                    })
+
                     send("power_summary", power_summary)
                     send("alarms_status", alarms_status)
                     send("solar_data", solar_data)
@@ -471,7 +478,7 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    send("ping", realtime_chart)
+                    send("ping", ping)
                     
 
                 except Exception as e:
