@@ -76,7 +76,7 @@ class Command(BaseCommand):
                     import "date"
                     import "timezone"
                     option location = timezone.location(name: "Asia/Jakarta")
-                    
+
                     startYesterday = date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
                     startTwoDaysAgo = date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d)
 
@@ -85,7 +85,7 @@ class Command(BaseCommand):
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
                         r._field == "kwh" and
-                        contains(value: r.device, set: {pm_flux_array})
+                        r.device =~ /PM[1-8]/
                     )
 
                     firstVals = data
@@ -505,7 +505,7 @@ class Command(BaseCommand):
                             })
 
                     ping = safe_json({
-                        "dummy": dummy
+                        "dummy": total_yesterday_kwh
                     })
 
                     send("power_summary", power_summary)
