@@ -489,13 +489,13 @@ class Command(BaseCommand):
 
                     flux_query = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: -1d)          // sesuaikan rentang waktu
+                    |> range(start: -2d)          // sesuaikan rentang waktu
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device == "PM1"
                         )
-                    |> sort(columns: ["_time"], desc: true)
+                    |> sort(columns: ["_time"], desc: false)
                     |> limit(n: 20)
                     '''
                     tables = query_api.query(flux_query)
