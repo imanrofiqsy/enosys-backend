@@ -85,7 +85,7 @@ class Command(BaseCommand):
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
                         r._field == "kwh" and
-                        r.device =~ /PM[1-8]/
+                        contains(value: r.device, set: {pm_flux_array})
                     )
 
                     firstVals = data
@@ -488,10 +488,12 @@ class Command(BaseCommand):
                         )
 
                     flux_dummy = f'''
-                    from(bucket: "{BUCKET}")
-                    |> range(start: -48h)
-                    |> filter(fn: (r) => r._field == "kwh")
-                    |> limit(n: 10)
+                    data = from(bucket: "{BUCKET}")
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh" and
+                        contains(value: r.device, set: {pm_flux_array})
+                    )
                     '''
 
                     tables = query_api.query(flux_dummy)
@@ -505,7 +507,7 @@ class Command(BaseCommand):
                             })
 
                     ping = safe_json({
-                        "dummy": total_yesterday_kwh
+                        "dummy": dummy
                     })
 
                     send("power_summary", power_summary)
