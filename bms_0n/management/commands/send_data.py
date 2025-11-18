@@ -74,7 +74,9 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     flux_yesterday = f'''
                     import "date"
-
+                    import "timezone"
+                    option location = timezone.location(name: "Asia/Jakarta")
+                    
                     startYesterday = date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
                     startTwoDaysAgo = date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d)
 
