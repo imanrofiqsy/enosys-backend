@@ -491,11 +491,13 @@ class Command(BaseCommand):
                     '''
 
                     tables = query_api.query(flux_yesterday)
-
-                    
+                    dummy = []
+                    for table in tables:
+                        for record in table.records:
+                            dummy.append({record.get_value()})
 
                     ping = safe_json({
-                        "dummy": tables
+                        "dummy": dummy
                     })
 
                     send("power_summary", power_summary)
