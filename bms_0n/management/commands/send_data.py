@@ -496,10 +496,12 @@ class Command(BaseCommand):
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
-                            r.device == "PM1"
+                            r.device =~ /^PM[1-7]$/
                         )
                     |> sort(columns: ["_time"], desc: false)
                     |> limit(n: 1)
+                    |> group(columns: ["_field"])
+                    |> sum()
                     '''
                     tables = query_api.query(flux_query)
                     dummy = []
@@ -519,10 +521,12 @@ class Command(BaseCommand):
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
-                            r.device == "PM1"
+                            r.device =~ /^PM[1-7]$/
                         )
                     |> sort(columns: ["_time"], desc: true)
                     |> limit(n: 1)
+                    |> group(columns: ["_field"])
+                    |> sum()
                     '''
                     tables = query_api.query(flux_query)
                     for table in tables:
