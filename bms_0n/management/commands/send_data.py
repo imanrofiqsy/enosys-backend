@@ -489,31 +489,21 @@ class Command(BaseCommand):
 
                     flux_query = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: -2d)
+                    |> range(start: -2d)          // sesuaikan rentang waktu
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device == "PM1"
                         )
                     |> sort(columns: ["_time"], desc: false)
-                    |> keep(columns: ["_time", "_value"])
-                    |> reduce(
-                            identity: {{first: 0.0, last: 0.0, initialized: false}},
-                            fn: (accumulator, r) => ({{
-                                first: if accumulator.initialized then accumulator.first else r._value,
-                                last: r._value,
-                                initialized: true
-                            }})
-                        )
-                    |> map(fn: (r) => ({{
-                            usage: r.last - r.first
-                    }}))
+                    |> limit(n: 20)
                     '''
                     tables = query_api.query(flux_query)
                     dummy = []
                     for table in tables:
                         for rec in table.records:
                             dummy.append({
+                                "time": rec.get_time().isoformat(),
                                 "value": round(float(rec.get_value()), 3)
                             })
 
