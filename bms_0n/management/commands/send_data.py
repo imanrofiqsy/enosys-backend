@@ -74,35 +74,25 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     flux_yesterday = f'''
                     import "date"
-                    import "timezone"
-                    option location = timezone.location(name: "Asia/Jakarta")
 
-                    startYesterday = date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
-                    startTwoDaysAgo = date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d)
-
-                    data = from(bucket: "{BUCKET}")
-                    |> range(start: startTwoDaysAgo, stop: startYesterday)
+                    kwh_daily = from(bucket: "YOUR_BUCKET")
+                    |> range(start: date.sub(from: now(), d: 2d), stop: now())
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
-                        r._field == "kwh" and
-                        contains(value: r.device, set: {pm_flux_array})
+                        r._field == "kwh"
                     )
+                    |> aggregateWindow(every: 1d, fn: last)
+                    |> sort(columns: ["_time"])
 
-                    firstVals = data
-                    |> first()
-
-                    lastVals = data
-                    |> last()
+                    first = kwh_daily |> first()
+                    second = kwh_daily |> last()
 
                     join(
-                    tables: {{f: firstVals, l: lastVals}},
-                    on: ["device"]
+                        tables: {{a:first, b:second}},
+                        on: ["_start","_stop"],
                     )
-                    |> map(fn: (r) => ({{
-                        device: r.device,
-                        diff: r._value_l - r._value_f
-                    }}))
-                    |> sum(column: "diff")
+                    |> map(fn: (r) => ({{ r with _value: r._value_b - r._value_a }}))
+                    |> rename(columns: {{_value: "kwh_yesterday"}})
 
                     '''
 
@@ -111,7 +101,7 @@ class Command(BaseCommand):
                     for table in tables:
                         for rec in table.records:
                             try:
-                                total_yesterday_kwh += float(rec.get_value())
+                                total_yesterday_kwh = float(rec.get_value())
                             except:
                                 pass
                     total_yesterday_kwh = round(total_yesterday_kwh, 3)
