@@ -489,7 +489,7 @@ class Command(BaseCommand):
 
                     flux_query = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: -1d)          // sesuaikan rentang waktu
+                    |> range(start: -0d)          // sesuaikan rentang waktu
                     |> filter(fn: (r) => 
                             r._measurement == "new_pm_data" and 
                             r._field == "kwh" and
