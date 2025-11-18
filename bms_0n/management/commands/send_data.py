@@ -494,9 +494,9 @@ class Command(BaseCommand):
 
                     
 
-                    # ping = safe_json({
-                    #     "dummy": dummy_tables
-                    # })
+                    ping = safe_json({
+                        "dummy": tables
+                    })
 
                     send("power_summary", power_summary)
                     send("alarms_status", alarms_status)
