@@ -488,6 +488,7 @@ class Command(BaseCommand):
                         )
 
                     flux_query = f'''
+                    import "experimental"
                     yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     from(bucket: "{BUCKET}")
@@ -510,6 +511,7 @@ class Command(BaseCommand):
                             })
 
                     flux_query = f'''
+                    import "experimental"
                     yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     from(bucket: "{BUCKET}")
