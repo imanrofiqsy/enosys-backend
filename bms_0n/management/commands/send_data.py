@@ -105,7 +105,6 @@ class Command(BaseCommand):
                     '''
 
                     tables = query_api.query(flux_yesterday)
-                    dummy_tables = tables   
                     total_yesterday_kwh = 0.0
                     for table in tables:
                         for rec in table.records:
@@ -484,6 +483,17 @@ class Command(BaseCommand):
                             },
                         )
 
+                    flux_yesterday = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -48h)
+                    |> filter(fn: (r) => r._field == "kwh")
+                    |> limit(n: 10)
+                    '''
+
+                    tables = query_api.query(flux_yesterday)
+
+                    
+
                     # ping = safe_json({
                     #     "dummy": dummy_tables
                     # })
@@ -495,7 +505,7 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    send("ping", dummy_tables)
+                    send("ping", tables)
                     
 
                 except Exception as e:
