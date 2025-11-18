@@ -495,6 +495,8 @@ class Command(BaseCommand):
                             r._field == "kwh" and
                             r.device == "PM1"
                         )
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 20)
                     '''
                     tables = query_api.query(flux_query)
                     dummy = []
