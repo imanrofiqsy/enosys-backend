@@ -74,15 +74,34 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     flux_yesterday = f'''
                     import "date"
-                    from(bucket: "{BUCKET}")
-                    |> range(
-                        start: date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d),
-                        stop:  date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
+
+                    startYesterday = date.sub(from: date.truncate(t: now(), unit: 1d), d: 1d)
+                    startTwoDaysAgo = date.sub(from: date.truncate(t: now(), unit: 1d), d: 2d)
+
+                    data = from(bucket: "{BUCKET}")
+                    |> range(start: startTwoDaysAgo, stop: startYesterday)
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh" and
+                        contains(value: r.device, set: {pm_flux_array})
                     )
-                    |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
-                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                    |> integral(unit: 1h)
-                    |> sum()
+
+                    firstVals = data
+                    |> first()
+
+                    lastVals = data
+                    |> last()
+
+                    join(
+                    tables: {{f: firstVals, l: lastVals}},
+                    on: ["device"]
+                    )
+                    |> map(fn: (r) => ({{
+                        device: r.device,
+                        diff: r._value_l - r._value_f
+                    }}))
+                    |> sum(column: "diff")
+
                     '''
 
                     tables = query_api.query(flux_yesterday)
