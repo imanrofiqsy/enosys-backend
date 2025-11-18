@@ -487,6 +487,26 @@ class Command(BaseCommand):
                             },
                         )
 
+                    flux_query = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -1d)          // sesuaikan rentang waktu
+                    |> filter(fn: (r) => 
+                            r._measurement == "new_pm_data" and 
+                            r._field == "kwh" and
+                            r.device == "PM1"
+                        )
+                    '''
+                    tables = query_api.query(flux_query)
+                    dummy = []
+                    for table in tables:
+                        for rec in table.records:
+                            dummy.append({
+                                "time": rec.get_time().isoformat(),
+                                "value": round(float(rec.get_value()), 3)
+                            })
+
+                    send("ping", {"data": dummy})
+
                     send("power_summary", power_summary)
                     send("alarms_status", alarms_status)
                     send("solar_data", solar_data)
