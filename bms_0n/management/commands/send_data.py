@@ -491,7 +491,7 @@ class Command(BaseCommand):
                     from(bucket: "{BUCKET}")
                     |> range(start: -1d)          // sesuaikan rentang waktu
                     |> filter(fn: (r) => 
-                            r._measurement == "new_pm_data" and 
+                            r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device == "PM1"
                         )
