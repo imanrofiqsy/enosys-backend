@@ -508,7 +508,6 @@ class Command(BaseCommand):
                     for table in tables:
                         for rec in table.records:
                             dummy.append({
-                                "time": rec.get_time().isoformat(),
                                 "value": round(float(rec.get_value()), 3)
                             })
 
@@ -532,7 +531,6 @@ class Command(BaseCommand):
                     for table in tables:
                         for rec in table.records:
                             dummy.append({
-                                "time": rec.get_time().isoformat(),
                                 "value": round(float(rec.get_value()), 3)
                             })
 
