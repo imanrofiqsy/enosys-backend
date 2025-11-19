@@ -598,7 +598,7 @@ class Command(BaseCommand):
                     solar_data = safe_json({
                         "solar_today_kwh": solar_today_kwh,
                         "solar_share_pct": solar_share_pct,
-                        "pln_today_kwh": pln_today_kwh,
+                        "pln_today_kwh": total_today_kwh,
                     })
 
                     # --- 4) Real-time Power Chart ---
