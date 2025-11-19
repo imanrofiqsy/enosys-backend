@@ -779,7 +779,7 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    send("room_status", room_status_data)
+                    # send("room_status", room_status_data)
                     # send("ping", ping)
                     
 
