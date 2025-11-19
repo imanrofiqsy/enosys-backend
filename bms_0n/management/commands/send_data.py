@@ -588,7 +588,7 @@ class Command(BaseCommand):
                     yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     from(bucket: "{BUCKET}")
-                    |> range(start: today_start, stop: now())          // sesuaikan rentang waktu
+                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
@@ -605,6 +605,27 @@ class Command(BaseCommand):
                                 "value": round(float(rec.get_value()), 3)
                             })
 
+                    flux_query = f'''
+                    import "experimental"
+                    yesterday_start = experimental.subDuration(d: 1d, from: today())
+                    today_start = today()
+                    from(bucket: "{BUCKET}")
+                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
+                    |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device =~ /^PM[1-7]$/
+                        )
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 1)
+                    '''
+                    tables = query_api.query(flux_query)
+                    for table in tables:
+                        for rec in table.records:
+                            dummy.append({
+                                "time": rec.get_time().isoformat(),
+                                "value": round(float(rec.get_value()), 3)
+                            })
                     # flux_query = f'''
                     # import "experimental"
                     # yesterday_start = experimental.subDuration(d: 1d, from: today())
