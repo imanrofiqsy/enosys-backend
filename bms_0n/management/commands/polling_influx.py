@@ -43,7 +43,7 @@ class Command(BaseCommand):
                     device = f"PM{i}"
 
                     # naik 0.01 – 0.05 kWh tiap interval
-                    delta = random.uniform(0.01, 0.05)
+                    delta = random.uniform(0.01, 0.10)
                     self.kwh_counters[device] += delta
                     kwh = round(self.kwh_counters[device], 3)
 
