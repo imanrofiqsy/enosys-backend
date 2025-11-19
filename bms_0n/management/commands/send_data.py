@@ -378,25 +378,48 @@ class Command(BaseCommand):
                         # Power today per device
                         flux_dev = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: today())
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data"
                         and r.device == "{dev}"
                         and r._field == "kwh"
                     )
-                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                    |> integral(unit: 1h)
+                    |> sort(columns: ["_time"], desc: false)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
                     |> sum()
                     '''
                         tables_dev = query_api.query(flux_dev)
                         dev_kwh = 0.0
+                        temp_dev = []
                         for table in tables_dev:
                             for rec in table.records:
                                 try:
-                                    dev_kwh += float(rec.get_value())
+                                    temp_dev.append(float(rec.get_value()))
                                 except:
                                     pass
-                        dev_kwh = round(dev_kwh, 3)
+
+                        flux_dev = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r.device == "{dev}"
+                        and r._field == "kwh"
+                    )
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
+                    |> sum()
+                    '''
+                        tables_dev = query_api.query(flux_dev)
+                        for table in tables_dev:
+                            for rec in table.records:
+                                try:
+                                    temp_dev.append(float(rec.get_value()))
+                                except:
+                                    pass
+                        dev_kwh = round(temp_dev[0]["value"] - temp_dev[1]["value"], 3)
 
                         # AC & lamp state
                         flux_state = f'''
