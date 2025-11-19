@@ -88,7 +88,7 @@ class Command(BaseCommand):
                             temp.append({
                                 "value": round(float(rec.get_value()), 3)
                             })
-                    total_today_kwh = temp[1]["value"] - temp[0]["value"]
+                    total_today_kwh = temp[0]["value"] - temp[1]["value"]
                     total_today_kwh = round(total_today_kwh, 3)
 
                     # ---------------------------------------------------------
@@ -141,7 +141,7 @@ class Command(BaseCommand):
                             temp.append({
                                 "value": round(float(rec.get_value()), 3)
                             })
-                    total_yesterday_kwh = temp[1]["value"] - temp[0]["value"]
+                    total_yesterday_kwh = temp[0]["value"] - temp[1]["value"]
                     total_yesterday_kwh = round(total_yesterday_kwh, 3)
 
                     # ---------------------------------------------------------
