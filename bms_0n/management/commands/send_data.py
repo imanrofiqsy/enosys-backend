@@ -765,7 +765,7 @@ class Command(BaseCommand):
 
                     # dummy_diff = dummy[0]["value"] - dummy[1]["value"]
 
-                    send("ping", dummy)
+                    # send("ping", dummy)
                     
                     # send("ping", {"today": total_today_kwh, "yesterday": total_yesterday_kwh})
 
