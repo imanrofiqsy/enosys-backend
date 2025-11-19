@@ -47,26 +47,48 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     # 1) Total power usage today (kWh)
                     # ---------------------------------------------------------
-                    pm_flux_array = "[" + ", ".join([f'"{pm}"' for pm in PM_LIST]) + "]"
+                    flux_today = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device =~ /^PM[1-7]$/
+                        )
+                    |> sort(columns: ["_time"], desc: false)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
+                    |> sum()
+                    '''
+                    tables = query_api.query(flux_today)
+                    temp = []
+                    for table in tables:
+                        for rec in table.records:
+                            temp.append({
+                                "value": round(float(rec.get_value()), 3)
+                            })
 
                     flux_today = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: today())
-                    |> filter(fn: (r) => r._measurement == "power_meter_data" and r._field == "kwh")
-                    |> filter(fn: (r) => contains(value: r.device, set: {pm_flux_array}))
-                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                    |> integral(unit: 1h)
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device =~ /^PM[1-7]$/
+                        )
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
                     |> sum()
                     '''
 
                     tables = query_api.query(flux_today)
-                    total_today_kwh = 0.0
                     for table in tables:
                         for rec in table.records:
-                            try:
-                                total_today_kwh += float(rec.get_value())
-                            except:
-                                pass
+                            temp.append({
+                                "value": round(float(rec.get_value()), 3)
+                            })
+                    total_today_kwh = temp[1]["value"] - temp[0]["value"]
                     total_today_kwh = round(total_today_kwh, 3)
 
                     # ---------------------------------------------------------
