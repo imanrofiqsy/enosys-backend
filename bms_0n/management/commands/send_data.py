@@ -419,7 +419,8 @@ class Command(BaseCommand):
                                     temp_dev.append(float(rec.get_value()))
                                 except:
                                     pass
-                        dev_kwh = temp_dev[0]["value"] - temp_dev[1]["value"]
+                        dev_kwh = temp_dev[0] - temp_dev[1]
+                        dev_kwh = round(dev_kwh, 3)
 
                         # AC & lamp state
                         flux_state = f'''
