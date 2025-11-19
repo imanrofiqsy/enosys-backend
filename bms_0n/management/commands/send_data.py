@@ -208,27 +208,48 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     # 6) Total solar output today (PM8)
                     # ---------------------------------------------------------
-                    flux_solar_today = f'''
+                    flux_solar = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: today())
-                    |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r.device == "{PM_SOLAR}"
-                        and r._field == "kwh"
-                    )
-                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                    |> integral(unit: 1h)
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device == "{PM_SOLAR}"
+                        )
+                    |> sort(columns: ["_time"], desc: false)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
+                    |> sum()
+                    '''
+                    tables = query_api.query(flux_solar)
+                    temp = []
+                    for table in tables:
+                        for rec in table.records:
+                            temp.append({
+                                "value": round(float(rec.get_value()), 3)
+                            })
+
+                    flux_solar = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device == "{PM_SOLAR}"
+                        )
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
                     |> sum()
                     '''
 
-                    tables = query_api.query(flux_solar_today)
-                    solar_today_kwh = 0.0
+                    tables = query_api.query(flux_solar)
                     for table in tables:
                         for rec in table.records:
-                            try:
-                                solar_today_kwh += float(rec.get_value())
-                            except:
-                                pass
+                            temp.append({
+                                "value": round(float(rec.get_value()), 3)
+                            })
+                    solar_today_kwh = temp[0]["value"] - temp[1]["value"]
                     solar_today_kwh = round(solar_today_kwh, 3)
 
                     # ---------------------------------------------------------
