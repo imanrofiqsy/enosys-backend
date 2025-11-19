@@ -18,7 +18,7 @@ BUCKET = INFLUX["bucket"]
 ORG = INFLUX["org"]
 
 # cost per kWh (currency per kWh) — set in settings or default
-COST_PER_KWH = float(getattr(settings, "COST_PER_KWH", 0.15))
+COST_PER_KWH = float(getattr(settings, "COST_PER_KWH", 1444))
 
 # devices
 PM_SOLAR = "PM8"
@@ -562,33 +562,7 @@ class Command(BaseCommand):
                             dummy.append({
                                 "value": round(float(rec.get_value()), 3)
                             })
-
-                    flux_query = f'''
                     
-                    import "experimental"
-                    yesterday_start = experimental.subDuration(d: 1d, from: today())
-                    today_start = today()
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device =~ /^PM[1-7]$/
-                        )
-                    |> sort(columns: ["_time"], desc: false)
-                    |> limit(n: 1)
-                    '''
-                    tables = query_api.query(flux_query)
-                    dummy = []
-                    for table in tables:
-                        for rec in table.records:
-                            dummy.append({
-                                "time" : rec.get_time().isoformat(),
-                                "value": round(float(rec.get_value()), 3)
-                            })
-
-                    
-
                     send("ping", {"data": dummy})
 
                     send("power_summary", power_summary)
