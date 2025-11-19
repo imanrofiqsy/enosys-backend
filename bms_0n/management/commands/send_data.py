@@ -255,30 +255,8 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     # PLN today (PM1..PM7) for solar share
                     # ---------------------------------------------------------
-                    flux_pln_today = f'''
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today())
-                    |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r._field == "kwh"
-                        and r.device =~ /PM[1-7]/
-                    )
-                    |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                    |> integral(unit: 1h)
-                    |> sum()
-                    '''
 
-                    tables = query_api.query(flux_pln_today)
-                    pln_today_kwh = 0.0
-                    for table in tables:
-                        for rec in table.records:
-                            try:
-                                pln_today_kwh += float(rec.get_value())
-                            except:
-                                pass
-                    pln_today_kwh = round(pln_today_kwh, 3)
-
-                    total_load = solar_today_kwh + pln_today_kwh
+                    total_load = solar_today_kwh + total_today_kwh
                     solar_share_pct = round((solar_today_kwh / total_load) * 100.0, 2) if total_load > 0 else 0.0
 
                     # ---------------------------------------------------------
@@ -492,6 +470,95 @@ class Command(BaseCommand):
                     if last_time:
                         delta = now - last_time.astimezone(timezone.utc)
                         system_online = delta.total_seconds() <= ONLINE_THRESHOLD_SECONDS
+
+                    # 11) Room status
+                    # ---------------------------------------------------------
+                    room_status = []
+
+                    for dev in PM_GRID:
+                        room_name = f"Room {dev[-1]}"  # Example: PM3 -> Room 3
+                        room_id = int(dev[-1])  # Extract room ID from device name
+
+                        # Current power, voltage, ampere, temperature, kWh
+                        flux_room = f'''
+                        from(bucket: "{BUCKET}")
+                        |> range(start: -1h)
+                        |> filter(fn: (r) =>
+                            r._measurement == "power_meter_data" and
+                            r.device == "{dev}" and
+                            (r._field == "power" or r._field == "voltage" or r._field == "ampere" or r._field == "temp" or r._field == "kwh")
+                        )
+                        |> last()
+                        '''
+                        tables_room = query_api.query(flux_room)
+
+                        room_data = {
+                            "device": dev,
+                            "room_name": room_name,
+                            "room_id": room_id,
+                            "lights": None,
+                            "ac": None,
+                            "power": None,
+                            "voltage": None,
+                            "ampere": None,
+                            "temp": None,
+                            "kwh": None,
+                            "history": {
+                                "power": [],
+                                "temp": []
+                            }
+                        }
+
+                        for table in tables_room:
+                            for rec in table.records:
+                                field = rec.get_field()
+                                value = rec.get_value()
+                                if field in room_data:
+                                    room_data[field] = round(float(value), 2)
+
+                        # Lights and AC state
+                        flux_state = f'''
+                        from(bucket: "{BUCKET}")
+                        |> range(start: -2h)
+                        |> filter(fn: (r) =>
+                            r._measurement == "power_meter_data" and
+                            r.device == "{dev}" and (r._field == "ac" or r._field == "lamp")
+                        )
+                        |> last()
+                        '''
+                        tables_state = query_api.query(flux_state)
+
+                        for table in tables_state:
+                            for rec in table.records:
+                                if rec.get_field() == "ac":
+                                    room_data["ac"] = bool(rec.get_value())
+                                elif rec.get_field() == "lamp":
+                                    room_data["lights"] = bool(rec.get_value())
+
+                        # History for power and temperature (hourly for the last 24 hours)
+                        flux_history = f'''
+                        from(bucket: "{BUCKET}")
+                        |> range(start: -24h)
+                        |> filter(fn: (r) =>
+                            r._measurement == "power_meter_data" and
+                            r.device == "{dev}" and (r._field == "power" or r._field == "temp")
+                        )
+                        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                        |> keep(columns: ["_time", "_value", "_field"])
+                        '''
+                        tables_history = query_api.query(flux_history)
+
+                        for table in tables_history:
+                            for rec in table.records:
+                                field = rec.get_field()
+                                time = rec.get_time().strftime("%H:%M")
+                                value = round(float(rec.get_value()), 2)
+                                if field == "power":
+                                    room_data["history"]["power"].append({"time": time, "value": value})
+                                elif field == "temp":
+                                    room_data["history"]["temp"].append({"time": time, "value": value})
+
+                        room_status.append(room_data)
 
                     # -------------------------
                     # Build payload
@@ -709,6 +776,7 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
+                    send("room_status", room_status)
                     # send("ping", ping)
                     
 

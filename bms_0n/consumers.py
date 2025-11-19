@@ -130,3 +130,11 @@ class MyConsumer(AsyncWebsocketConsumer):
             "payload": event["payload"],
             "topic": event["topic"]
         }))
+
+    async def room_status(self, event):
+        data = event.get("data", {})
+        await self.send(text_data=json.dumps({
+            "type": "room_status",
+            "topic": "room_status",
+            "payload": data
+        }))
