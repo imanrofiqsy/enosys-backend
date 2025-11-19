@@ -520,7 +520,7 @@ class Command(BaseCommand):
                     yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     from(bucket: "{BUCKET}")
-                    |> range(start: yesterday_start(), stop: today_start())          // sesuaikan rentang waktu
+                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
@@ -544,7 +544,7 @@ class Command(BaseCommand):
                     yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     from(bucket: "{BUCKET}")
-                    |> range(start: yesterday_start(), stop: today_start())          // sesuaikan rentang waktu
+                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
