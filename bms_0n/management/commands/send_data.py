@@ -548,7 +548,7 @@ class Command(BaseCommand):
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
-                            r.device == "PM1"
+                            r.device == "PM2"
                         )
                     |> sort(columns: ["_time"], desc: false)
                     |> limit(n: 1)
@@ -571,7 +571,7 @@ class Command(BaseCommand):
                     |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
-                            r.device == "PM1"
+                            r.device == "PM2"
                         )
                     |> sort(columns: ["_time"], desc: true)
                     |> limit(n: 1)
