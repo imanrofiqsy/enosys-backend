@@ -562,8 +562,10 @@ class Command(BaseCommand):
                             dummy.append({
                                 "value": round(float(rec.get_value()), 3)
                             })
+
+                    dummy_diff = dummy[0]["value"] - dummy[1]["value"]
                     
-                    send("ping", {"data": dummy})
+                    send("ping", {"data": dummy_diff})
 
                     send("power_summary", power_summary)
                     send("alarms_status", alarms_status)
