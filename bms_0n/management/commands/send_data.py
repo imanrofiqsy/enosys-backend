@@ -618,9 +618,6 @@ class Command(BaseCommand):
                         "system_online": system_online,
                     })
 
-                    # --- 8) Room Status ---
-                    room_status_data = safe_json(room_status)
-
                     def send(topic, data):
                         async_to_sync(channel_layer.group_send)(
                             group_name,
@@ -779,7 +776,7 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    # send("room_status", room_status_data)
+                    send("room_status", room_status)
                     # send("ping", ping)
                     
 
