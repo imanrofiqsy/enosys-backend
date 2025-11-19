@@ -395,7 +395,7 @@ class Command(BaseCommand):
                         for table in tables_dev:
                             for rec in table.records:
                                 try:
-                                    temp_dev.append(float(rec.get_value()))
+                                    temp_dev.append({"value": float(rec.get_value())})
                                 except:
                                     pass
 
@@ -416,10 +416,10 @@ class Command(BaseCommand):
                         for table in tables_dev:
                             for rec in table.records:
                                 try:
-                                    temp_dev.append(float(rec.get_value()))
+                                    temp_dev.append({"value": float(rec.get_value())})
                                 except:
                                     pass
-                        dev_kwh = temp_dev[0] - temp_dev[1]
+                        dev_kwh = temp_dev[0]["value"] - temp_dev[1]["value"]
                         dev_kwh = round(dev_kwh, 3)
 
                         # AC & lamp state
