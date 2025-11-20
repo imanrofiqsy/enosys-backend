@@ -85,7 +85,7 @@ class Command(BaseCommand):
 
                     flux_pln_weekly = f'''
                     from(bucket: "{BUCKET}")
-                    |> range(start: -7d, stop: now())
+                    |> range(start: -7d)
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
                         r._field == "kwh" and
@@ -94,10 +94,13 @@ class Command(BaseCommand):
                     |> group(columns: ["device"])
                     |> fill(usePrevious: true)
                     |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+                    |> fill(usePrevious: true)             // ⭐ Tambahan penting
                     |> difference(nonNegative: true)
+                    |> filter(fn: (r) => exists r._value)  // ⭐ Hilangkan hari yang null
                     |> group(columns: ["_time"])
                     |> sum()
                     |> sort(columns: ["_time"])
+
                     '''
                     tables = query_api.query(flux_pln_weekly)
                     pln_weekly_data = []
