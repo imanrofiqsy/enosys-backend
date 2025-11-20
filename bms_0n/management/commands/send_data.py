@@ -501,11 +501,11 @@ class Command(BaseCommand):
                             "power": None,
                             "voltage": None,
                             "ampere": None,
-                            "temp": None,
+                            "temperature": None,
                             "kwh": None,
                             "history": {
                                 "power": [],
-                                "temp": [],
+                                "temperature": [],
                                 "voltage": [],
                                 "ampere": [],
                             }
@@ -516,8 +516,6 @@ class Command(BaseCommand):
                                 field = rec.get_field()
                                 value = rec.get_value()
                                 if field in room_data:
-                                    if field == "tempereature":
-                                        field = "temp"
                                     room_data[field] = round(float(value), 2)
 
                         # Lights and AC state
