@@ -498,14 +498,16 @@ class Command(BaseCommand):
                             "room_id": room_id,
                             "lights": None,
                             "ac": None,
-                            "power": None,
+                            "kwh": None,
                             "voltage": None,
                             "ampere": None,
                             "temp": None,
                             "kwh": None,
                             "history": {
-                                "power": [],
-                                "temp": []
+                                "kwh": [],
+                                "temperature": [],
+                                "voltage": [],
+                                "ampere": [],
                             }
                         }
 
@@ -541,7 +543,7 @@ class Command(BaseCommand):
                         |> range(start: -24h)
                         |> filter(fn: (r) =>
                             r._measurement == "power_meter_data" and
-                            r.device == "{dev}" and (r._field == "power" or r._field == "temp")
+                            r.device == "{dev}" and (r._field == "kwh" or r._field == "temperature" or r._field == "ampere" or r._field == "voltage")
                         )
                         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
                         |> keep(columns: ["_time", "_value", "_field"])
@@ -553,10 +555,14 @@ class Command(BaseCommand):
                                 field = rec.get_field()
                                 time = rec.get_time().strftime("%H:%M")
                                 value = round(float(rec.get_value()), 2)
-                                if field == "power":
-                                    room_data["history"]["power"].append({"time": time, "value": value})
-                                elif field == "temp":
-                                    room_data["history"]["temp"].append({"time": time, "value": value})
+                                if field == "kwh":
+                                    room_data["history"]["kwh"].append({"time": time, "value": value})
+                                elif field == "temperature":
+                                    room_data["history"]["temperature"].append({"time": time, "value": value})
+                                elif field == "voltage":
+                                    room_data["history"]["voltage"].append({"time": time, "value": value})
+                                elif field == "ampere":
+                                    room_data["history"]["ampere"].append({"time": time, "value": value})
 
                         room_status.append(room_data)
 
