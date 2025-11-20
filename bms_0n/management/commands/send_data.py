@@ -45,7 +45,7 @@ class Command(BaseCommand):
                 try:
                     now = datetime.now(timezone.utc)
                     # ---------------------------------------------------------
-                    # 7) Realtime power usage
+                    # Realtime power usage
                     # ---------------------------------------------------------
 
                     flux_realtime_chart = f'''
@@ -80,7 +80,39 @@ class Command(BaseCommand):
                             })
 
                     # ---------------------------------------------------------
-                    # 10) System online/offline check
+                    # pln vs solar weekly chart
+                    # ---------------------------------------------------------
+
+                    flux_pln_weekly = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -7d, stop: now())
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh" and
+                        r.device =~ /^PM[1-7]$/
+                    )
+                    |> group(columns: ["device"])
+                    |> fill(usePrevious: true)
+                    |> aggregateWindow(every: 1d, fn: last, createEmpty: true)
+                    |> difference(nonNegative: true)
+                    |> group(columns: ["_time"])
+                    |> sum()
+                    |> sort(columns: ["_time"])
+                    '''
+                    tables = query_api.query(flux_pln_weekly)
+                    pln_weekly_data = []
+                    for table in tables:
+                        for rec in table.records:
+                            value = rec.get_value()
+                            if value is None:
+                                continue  # skip record yang kosong
+
+                            pln_weekly_data.append({
+                                "time": rec.get_time().isoformat(),
+                                "value": round(float(value), 3)
+                            })
+                    # ---------------------------------------------------------
+                    # System online/offline check
                     # ---------------------------------------------------------
                     flux_last = f'''
                     from(bucket: "{BUCKET}")
@@ -135,7 +167,7 @@ class Command(BaseCommand):
 
                     send("system_status", system_status)
                     send("realtime_chart", safe_json(realtime_data))
-                    send("ping", safe_json(realtime_data))
+                    send("ping", safe_json(pln_weekly_data))
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
