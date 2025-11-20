@@ -260,6 +260,32 @@ class Command(BaseCommand):
                     solar_share_pct = round((solar_today_kwh / total_load) * 100.0, 2) if total_load > 0 else 0.0
 
                     # ---------------------------------------------------------
+                    # 7) Realtime power usage
+                    # ---------------------------------------------------------
+
+                    flux_realtime_chart = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today(), stop: now())
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data" and
+                        r._field == "kwh"
+                    )
+                    |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
+                    |> difference(nonNegative: true)
+                    |> group(columns: ["_time"])
+                    |> sum()
+                    '''
+
+                    tables = query_api.query(flux_realtime_chart)
+                    realtime_data = []
+                    for table in tables:
+                        for rec in table.records:
+                            realtime_data.append({
+                                "time": rec.get_time().isoformat(),
+                                "value": round(float(rec.get_value()), 3)
+                            })
+
+                    # ---------------------------------------------------------
                     # 10) System online/offline check
                     # ---------------------------------------------------------
                     flux_last = f'''
@@ -340,6 +366,7 @@ class Command(BaseCommand):
                     send("alarms_status", alarms_status)
                     send("solar_data", solar_data)
                     send("system_status", system_status)
+                    send("realtime_chart", safe_json(realtime_data))
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
