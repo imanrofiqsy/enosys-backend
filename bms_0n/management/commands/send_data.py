@@ -498,10 +498,10 @@ class Command(BaseCommand):
                             "room_id": room_id,
                             "lights": None,
                             "ac": None,
-                            "kwh": None,
+                            "power": None,
                             "voltage": None,
                             "ampere": None,
-                            "temperature": None,
+                            "temp": None,
                             "kwh": None,
                             "history": {
                                 "power": [],
