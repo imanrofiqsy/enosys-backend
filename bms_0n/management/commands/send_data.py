@@ -56,17 +56,21 @@ class Command(BaseCommand):
                         r._field == "kwh" and
                         r.device =~ /^PM[1-7]$/
                     )
-                    |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
+                    |> keep(columns: ["_time", "_value", "device"])
+                    |> group(columns: ["device"])
+                    |> fill(usePrevious: true)
+                    |> aggregateWindow(every: 1h, fn: last, createEmpty: true)
                     |> difference(nonNegative: true)
-                    |> aggregateWindow(every: 1h, fn: sum, createEmpty: false)
-                    |> filter(fn: (r) => exists r._value)
+                    |> group(columns: ["_time"])
+                    |> sum()
+                    |> sort(columns: ["_time"])
                     '''
 
                     tables = query_api.query(flux_realtime_chart)
                     realtime_data = []
                     for table in tables:
                         for rec in table.records:
-                            value = rec.get_value()
+                            value += rec.get_value()
                             if value is None:
                                 continue  # skip record yang kosong
 
