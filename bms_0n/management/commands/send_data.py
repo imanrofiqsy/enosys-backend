@@ -373,82 +373,82 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     overview = []
 
-                    # for dev in PM_GRID:
-                    #     # Power today per device
-                    #     flux_dev = f'''
-                    # from(bucket: "{BUCKET}")
-                    # |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    # |> filter(fn: (r) =>
-                    #     r._measurement == "power_meter_data"
-                    #     and r.device == "{dev}"
-                    #     and r._field == "kwh"
-                    # )
-                    # |> sort(columns: ["_time"], desc: false)
-                    # |> limit(n: 1)
-                    # |> group(columns: ["_field"])
-                    # |> sum()
-                    # '''
-                    #     tables_dev = query_api.query(flux_dev)
-                    #     dev_kwh = 0.0
-                    #     temp_dev = []
-                    #     for table in tables_dev:
-                    #         for rec in table.records:
-                    #             try:
-                    #                 temp_dev.append({"value": float(rec.get_value())})
-                    #             except:
-                    #                 pass
+                    for dev in PM_GRID:
+                        # Power today per device
+                        flux_dev = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r.device == "{dev}"
+                        and r._field == "kwh"
+                    )
+                    |> sort(columns: ["_time"], desc: false)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
+                    |> sum()
+                    '''
+                        tables_dev = query_api.query(flux_dev)
+                        dev_kwh = 0.0
+                        temp_dev = []
+                        for table in tables_dev:
+                            for rec in table.records:
+                                try:
+                                    temp_dev.append({"value": float(rec.get_value())})
+                                except:
+                                    pass
 
-                    #     flux_dev = f'''
-                    # from(bucket: "{BUCKET}")
-                    # |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    # |> filter(fn: (r) =>
-                    #     r._measurement == "power_meter_data"
-                    #     and r.device == "{dev}"
-                    #     and r._field == "kwh"
-                    # )
-                    # |> sort(columns: ["_time"], desc: true)
-                    # |> limit(n: 1)
-                    # |> group(columns: ["_field"])
-                    # |> sum()
-                    # '''
-                    #     tables_dev = query_api.query(flux_dev)
-                    #     for table in tables_dev:
-                    #         for rec in table.records:
-                    #             try:
-                    #                 temp_dev.append({"value": float(rec.get_value())})
-                    #             except:
-                    #                 pass
-                    #     dev_kwh = temp_dev[0]["value"] - temp_dev[1]["value"]
-                    #     dev_kwh = round(dev_kwh, 3)
+                        flux_dev = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r.device == "{dev}"
+                        and r._field == "kwh"
+                    )
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 1)
+                    |> group(columns: ["_field"])
+                    |> sum()
+                    '''
+                        tables_dev = query_api.query(flux_dev)
+                        for table in tables_dev:
+                            for rec in table.records:
+                                try:
+                                    temp_dev.append({"value": float(rec.get_value())})
+                                except:
+                                    pass
+                        dev_kwh = temp_dev[0]["value"] - temp_dev[1]["value"]
+                        dev_kwh = round(dev_kwh, 3)
 
-                    #     # AC & lamp state
-                    #     flux_state = f'''
-                    # from(bucket: "{BUCKET}")
-                    # |> range(start: -2h)
-                    # |> filter(fn: (r) =>
-                    #     r._measurement == "power_meter_data"
-                    #     and r.device == "{dev}"
-                    #     and (r._field == "ac" or r._field == "lamp")
-                    # )
-                    # |> last()
-                    # '''
-                    #     tables_state = query_api.query(flux_state)
-                    #     ac_state = None
-                    #     lamp_state = None
+                        # AC & lamp state
+                        flux_state = f'''
+                    from(bucket: "{BUCKET}")
+                    |> range(start: -2h)
+                    |> filter(fn: (r) =>
+                        r._measurement == "power_meter_data"
+                        and r.device == "{dev}"
+                        and (r._field == "ac" or r._field == "lamp")
+                    )
+                    |> last()
+                    '''
+                        tables_state = query_api.query(flux_state)
+                        ac_state = None
+                        lamp_state = None
 
-                    #     for table in tables_state:
-                    #         for rec in table.records:
-                    #             if rec.get_field() == "ac":
-                    #                 ac_state = bool(rec.get_value())
-                    #             elif rec.get_field() == "lamp":
-                    #                 lamp_state = bool(rec.get_value())
+                        for table in tables_state:
+                            for rec in table.records:
+                                if rec.get_field() == "ac":
+                                    ac_state = bool(rec.get_value())
+                                elif rec.get_field() == "lamp":
+                                    lamp_state = bool(rec.get_value())
 
-                    #     overview.append({
-                    #         "device": dev,
-                    #         "power_kwh": dev_kwh,
-                    #         "ac": ac_state,
-                    #         "lamp": lamp_state
-                    #     })
+                        overview.append({
+                            "device": dev,
+                            "power_kwh": dev_kwh,
+                            "ac": ac_state,
+                            "lamp": lamp_state
+                        })
 
                     # ---------------------------------------------------------
                     # 10) System online/offline check
@@ -470,95 +470,6 @@ class Command(BaseCommand):
                     if last_time:
                         delta = now - last_time.astimezone(timezone.utc)
                         system_online = delta.total_seconds() <= ONLINE_THRESHOLD_SECONDS
-
-                    # 11) Room status
-                    # ---------------------------------------------------------
-                    room_status = []
-
-                    for dev in PM_GRID:
-                        room_name = f"Room {dev[-1]}"  # Example: PM3 -> Room 3
-                        room_id = int(dev[-1])  # Extract room ID from device name
-
-                        # Current power, voltage, ampere, temperature, kWh
-                        flux_room = f'''
-                        from(bucket: "{BUCKET}")
-                        |> range(start: -1h)
-                        |> filter(fn: (r) =>
-                            r._measurement == "power_meter_data" and
-                            r.device == "{dev}" and
-                            (r._field == "power" or r._field == "voltage" or r._field == "ampere" or r._field == "temp" or r._field == "kwh")
-                        )
-                        |> last()
-                        '''
-                        tables_room = query_api.query(flux_room)
-
-                        room_data = {
-                            "device": dev,
-                            "room_name": room_name,
-                            "room_id": room_id,
-                            "lights": None,
-                            "ac": None,
-                            "power": None,
-                            "voltage": None,
-                            "ampere": None,
-                            "temp": None,
-                            "kwh": None,
-                            "history": {
-                                "power": [],
-                                "temp": []
-                            }
-                        }
-
-                        for table in tables_room:
-                            for rec in table.records:
-                                field = rec.get_field()
-                                value = rec.get_value()
-                                if field in room_data:
-                                    room_data[field] = round(float(value), 2)
-
-                        # Lights and AC state
-                        flux_state = f'''
-                        from(bucket: "{BUCKET}")
-                        |> range(start: -2h)
-                        |> filter(fn: (r) =>
-                            r._measurement == "power_meter_data" and
-                            r.device == "{dev}" and (r._field == "ac" or r._field == "lamp")
-                        )
-                        |> last()
-                        '''
-                        tables_state = query_api.query(flux_state)
-
-                        for table in tables_state:
-                            for rec in table.records:
-                                if rec.get_field() == "ac":
-                                    room_data["ac"] = bool(rec.get_value())
-                                elif rec.get_field() == "lamp":
-                                    room_data["lights"] = bool(rec.get_value())
-
-                        # History for power and temperature (hourly for the last 24 hours)
-                        flux_history = f'''
-                        from(bucket: "{BUCKET}")
-                        |> range(start: -24h)
-                        |> filter(fn: (r) =>
-                            r._measurement == "power_meter_data" and
-                            r.device == "{dev}" and (r._field == "power" or r._field == "temp")
-                        )
-                        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-                        |> keep(columns: ["_time", "_value", "_field"])
-                        '''
-                        tables_history = query_api.query(flux_history)
-
-                        for table in tables_history:
-                            for rec in table.records:
-                                field = rec.get_field()
-                                time = rec.get_time().strftime("%H:%M")
-                                value = round(float(rec.get_value()), 2)
-                                if field == "power":
-                                    room_data["history"]["power"].append({"time": time, "value": value})
-                                elif field == "temp":
-                                    room_data["history"]["temp"].append({"time": time, "value": value})
-
-                        room_status.append(room_data)
 
                     # -------------------------
                     # Build payload
@@ -650,71 +561,6 @@ class Command(BaseCommand):
                                 "value": round(float(rec.get_value()), 3)
                             })
 
-                    flux_query = f'''
-                    import "experimental"
-                    yesterday_start = experimental.subDuration(d: 1d, from: today())
-                    today_start = today()
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today_start, stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device =~ /^PM[1-7]$/
-                        )
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 1)
-                    '''
-                    tables = query_api.query(flux_query)
-                    for table in tables:
-                        for rec in table.records:
-                            dummy.append({
-                                "time": rec.get_time().isoformat(),
-                                "value": round(float(rec.get_value()), 3)
-                            })
-
-                    flux_query = f'''
-                    import "experimental"
-                    yesterday_start = experimental.subDuration(d: 1d, from: today())
-                    today_start = today()
-                    from(bucket: "{BUCKET}")
-                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device =~ /^PM[1-7]$/
-                        )
-                    |> sort(columns: ["_time"], desc: false)
-                    |> limit(n: 1)
-                    '''
-                    tables = query_api.query(flux_query)
-                    for table in tables:
-                        for rec in table.records:
-                            dummy.append({
-                                "time": rec.get_time().isoformat(),
-                                "value": round(float(rec.get_value()), 3)
-                            })
-                    
-                    flux_query = f'''
-                    import "experimental"
-                    yesterday_start = experimental.subDuration(d: 1d, from: today())
-                    today_start = today()
-                    from(bucket: "{BUCKET}")
-                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device =~ /^PM[1-7]$/
-                        )
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 1)
-                    '''
-                    tables = query_api.query(flux_query)
-                    for table in tables:
-                        for rec in table.records:
-                            dummy.append({
-                                "time": rec.get_time().isoformat(),
-                                "value": round(float(rec.get_value()), 3)
-                            })
                     # flux_query = f'''
                     # import "experimental"
                     # yesterday_start = experimental.subDuration(d: 1d, from: today())
@@ -776,9 +622,6 @@ class Command(BaseCommand):
                     send("weekly_chart", weekly_chart)
                     send("overview_room", overview_data)
                     send("system_status", system_status)
-                    # send("room_status", room_status)
-                    # send("ping", ping)
-                    
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
