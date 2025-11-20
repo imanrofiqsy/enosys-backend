@@ -373,82 +373,82 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     overview = []
 
-                    for dev in PM_GRID:
-                        # Power today per device
-                        flux_dev = f'''
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r.device == "{dev}"
-                        and r._field == "kwh"
-                    )
-                    |> sort(columns: ["_time"], desc: false)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
-                    '''
-                        tables_dev = query_api.query(flux_dev)
-                        dev_kwh = 0.0
-                        temp_dev = []
-                        for table in tables_dev:
-                            for rec in table.records:
-                                try:
-                                    temp_dev.append({"value": float(rec.get_value())})
-                                except:
-                                    pass
+                    # for dev in PM_GRID:
+                    #     # Power today per device
+                    #     flux_dev = f'''
+                    # from(bucket: "{BUCKET}")
+                    # |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    # |> filter(fn: (r) =>
+                    #     r._measurement == "power_meter_data"
+                    #     and r.device == "{dev}"
+                    #     and r._field == "kwh"
+                    # )
+                    # |> sort(columns: ["_time"], desc: false)
+                    # |> limit(n: 1)
+                    # |> group(columns: ["_field"])
+                    # |> sum()
+                    # '''
+                    #     tables_dev = query_api.query(flux_dev)
+                    #     dev_kwh = 0.0
+                    #     temp_dev = []
+                    #     for table in tables_dev:
+                    #         for rec in table.records:
+                    #             try:
+                    #                 temp_dev.append({"value": float(rec.get_value())})
+                    #             except:
+                    #                 pass
 
-                        flux_dev = f'''
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r.device == "{dev}"
-                        and r._field == "kwh"
-                    )
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
-                    '''
-                        tables_dev = query_api.query(flux_dev)
-                        for table in tables_dev:
-                            for rec in table.records:
-                                try:
-                                    temp_dev.append({"value": float(rec.get_value())})
-                                except:
-                                    pass
-                        dev_kwh = temp_dev[0]["value"] - temp_dev[1]["value"]
-                        dev_kwh = round(dev_kwh, 3)
+                    #     flux_dev = f'''
+                    # from(bucket: "{BUCKET}")
+                    # |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    # |> filter(fn: (r) =>
+                    #     r._measurement == "power_meter_data"
+                    #     and r.device == "{dev}"
+                    #     and r._field == "kwh"
+                    # )
+                    # |> sort(columns: ["_time"], desc: true)
+                    # |> limit(n: 1)
+                    # |> group(columns: ["_field"])
+                    # |> sum()
+                    # '''
+                    #     tables_dev = query_api.query(flux_dev)
+                    #     for table in tables_dev:
+                    #         for rec in table.records:
+                    #             try:
+                    #                 temp_dev.append({"value": float(rec.get_value())})
+                    #             except:
+                    #                 pass
+                    #     dev_kwh = temp_dev[0]["value"] - temp_dev[1]["value"]
+                    #     dev_kwh = round(dev_kwh, 3)
 
-                        # AC & lamp state
-                        flux_state = f'''
-                    from(bucket: "{BUCKET}")
-                    |> range(start: -2h)
-                    |> filter(fn: (r) =>
-                        r._measurement == "power_meter_data"
-                        and r.device == "{dev}"
-                        and (r._field == "ac" or r._field == "lamp")
-                    )
-                    |> last()
-                    '''
-                        tables_state = query_api.query(flux_state)
-                        ac_state = None
-                        lamp_state = None
+                    #     # AC & lamp state
+                    #     flux_state = f'''
+                    # from(bucket: "{BUCKET}")
+                    # |> range(start: -2h)
+                    # |> filter(fn: (r) =>
+                    #     r._measurement == "power_meter_data"
+                    #     and r.device == "{dev}"
+                    #     and (r._field == "ac" or r._field == "lamp")
+                    # )
+                    # |> last()
+                    # '''
+                    #     tables_state = query_api.query(flux_state)
+                    #     ac_state = None
+                    #     lamp_state = None
 
-                        for table in tables_state:
-                            for rec in table.records:
-                                if rec.get_field() == "ac":
-                                    ac_state = bool(rec.get_value())
-                                elif rec.get_field() == "lamp":
-                                    lamp_state = bool(rec.get_value())
+                    #     for table in tables_state:
+                    #         for rec in table.records:
+                    #             if rec.get_field() == "ac":
+                    #                 ac_state = bool(rec.get_value())
+                    #             elif rec.get_field() == "lamp":
+                    #                 lamp_state = bool(rec.get_value())
 
-                        overview.append({
-                            "device": dev,
-                            "power_kwh": dev_kwh,
-                            "ac": ac_state,
-                            "lamp": lamp_state
-                        })
+                    #     overview.append({
+                    #         "device": dev,
+                    #         "power_kwh": dev_kwh,
+                    #         "ac": ac_state,
+                    #         "lamp": lamp_state
+                    #     })
 
                     # ---------------------------------------------------------
                     # 10) System online/offline check
