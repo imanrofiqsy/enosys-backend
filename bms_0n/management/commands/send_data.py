@@ -516,6 +516,8 @@ class Command(BaseCommand):
                                 field = rec.get_field()
                                 value = rec.get_value()
                                 if field in room_data:
+                                    if field == "tempereature":
+                                        field = "temp"
                                     room_data[field] = round(float(value), 2)
 
                         # Lights and AC state
