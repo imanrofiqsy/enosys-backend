@@ -58,8 +58,7 @@ class Command(BaseCommand):
                     )
                     |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
                     |> difference(nonNegative: true)
-                    |> group(columns: ["_time"])
-                    |> sum()
+                    |> aggregateWindow(every: 1h, fn: sum, createEmpty: false)
                     |> filter(fn: (r) => exists r._value)
                     '''
 
