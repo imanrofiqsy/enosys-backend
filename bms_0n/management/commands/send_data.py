@@ -486,7 +486,7 @@ class Command(BaseCommand):
                         |> filter(fn: (r) =>
                             r._measurement == "power_meter_data" and
                             r.device == "{dev}" and
-                            (r._field == "power" or r._field == "voltage" or r._field == "ampere" or r._field == "temp" or r._field == "kwh")
+                            (r._field == "power" or r._field == "voltage" or r._field == "ampere" or r._field == "temperature" or r._field == "kwh")
                         )
                         |> last()
                         '''
@@ -501,7 +501,7 @@ class Command(BaseCommand):
                             "kwh": None,
                             "voltage": None,
                             "ampere": None,
-                            "temp": None,
+                            "temperature": None,
                             "kwh": None,
                             "history": {
                                 "kwh": [],
