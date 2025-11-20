@@ -268,7 +268,8 @@ class Command(BaseCommand):
                     |> range(start: today(), stop: now())
                     |> filter(fn: (r) =>
                         r._measurement == "power_meter_data" and
-                        r._field == "kwh"
+                        r._field == "kwh" and
+                        r.device =~ /^PM[1-7]$/
                     )
                     |> aggregateWindow(every: 1h, fn: last, createEmpty: false)
                     |> difference(nonNegative: true)
