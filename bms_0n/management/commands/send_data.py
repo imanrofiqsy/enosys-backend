@@ -373,6 +373,7 @@ class Command(BaseCommand):
                     send("solar_data", solar_data)
                     send("system_status", system_status)
                     send("realtime_chart", safe_json(realtime_data))
+                    send("ping", safe_json(realtime_data))
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
