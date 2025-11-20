@@ -70,7 +70,7 @@ class Command(BaseCommand):
                     realtime_data = []
                     for table in tables:
                         for rec in table.records:
-                            value += rec.get_value()
+                            value = rec.get_value()
                             if value is None:
                                 continue  # skip record yang kosong
 
