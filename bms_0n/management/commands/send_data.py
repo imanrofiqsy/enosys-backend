@@ -275,15 +275,20 @@ class Command(BaseCommand):
                     |> difference(nonNegative: true)
                     |> group(columns: ["_time"])
                     |> sum()
+                    |> filter(fn: (r) => exists r._value)
                     '''
 
                     tables = query_api.query(flux_realtime_chart)
                     realtime_data = []
                     for table in tables:
                         for rec in table.records:
+                            value = rec.get_value()
+                            if value is None:
+                                continue  # skip record yang kosong
+
                             realtime_data.append({
                                 "time": rec.get_time().isoformat(),
-                                "value": round(float(rec.get_value()), 3)
+                                "value": round(float(value), 3)
                             })
 
                     # ---------------------------------------------------------
