@@ -556,9 +556,9 @@ class Command(BaseCommand):
                                 time = rec.get_time().strftime("%H:%M")
                                 value = round(float(rec.get_value()), 2)
                                 if field == "kwh":
-                                    room_data["history"]["power"].append({"time": time, "value": value})
+                                    room_data["history"]["kwh"].append({"time": time, "value": value})
                                 elif field == "temperature":
-                                    room_data["history"]["temp"].append({"time": time, "value": value})
+                                    room_data["history"]["temperature"].append({"time": time, "value": value})
                                 elif field == "voltage":
                                     room_data["history"]["voltage"].append({"time": time, "value": value})
                                 elif field == "ampere":
