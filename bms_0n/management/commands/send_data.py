@@ -504,7 +504,7 @@ class Command(BaseCommand):
                             "temperature": None,
                             "kwh": None,
                             "history": {
-                                "power": [],
+                                "kwh": [],
                                 "temperature": [],
                                 "voltage": [],
                                 "ampere": [],
