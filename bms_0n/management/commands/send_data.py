@@ -506,7 +506,7 @@ class Command(BaseCommand):
                             "ampere": None,
                             "temperature": None,
                             "kwh": None,
-                            "history": None
+                            "history": {}
                         }
 
                         for table in tables_room:
