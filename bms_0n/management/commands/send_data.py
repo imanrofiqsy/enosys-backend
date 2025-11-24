@@ -506,12 +506,7 @@ class Command(BaseCommand):
                             "ampere": None,
                             "temperature": None,
                             "kwh": None,
-                            "history": {
-                                "kwh": [],
-                                "temperature": [],
-                                "voltage": [],
-                                "ampere": [],
-                            }
+                            "history": None
                         }
 
                         for table in tables_room:
@@ -560,7 +555,7 @@ class Command(BaseCommand):
                                 value = round(float(rec.get_value()), 2)
                                 if time not in room_data["history"]:
                                     room_data["history"][time] = {"time": time}
-                                # room_data["history"][time][field] = value
+                                room_data["history"][time][field] = value
 
                         room_status.append(room_data)
 
