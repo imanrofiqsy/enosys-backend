@@ -33,7 +33,7 @@ class Command(BaseCommand):
     help = "Fetch metrics from InfluxDB and push aggregated payload to channels group 'dashboard_group'"
 
     def handle(self, *args, **options):
-        client = InfluxDBClient(url=INFLUX["url"], token=INFLUX["token"], org=ORG)
+        client = InfluxDBClient(url=INFLUX["url"], token=INFLUX["token"], org=ORG, timeout=60000)
         query_api = client.query_api()
         channel_layer = get_channel_layer()
         group_name = "dashboard_group"
