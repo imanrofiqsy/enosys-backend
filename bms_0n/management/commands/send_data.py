@@ -141,8 +141,11 @@ class Command(BaseCommand):
                             temp.append({
                                 "value": round(float(rec.get_value()), 3)
                             })
-                    total_yesterday_kwh = temp[0]["value"] - temp[1]["value"]
-                    total_yesterday_kwh = round(total_yesterday_kwh, 3)
+                    try:
+                        total_yesterday_kwh = temp[0]["value"] - temp[1]["value"]
+                        total_yesterday_kwh = round(total_yesterday_kwh, 3)
+                    except:
+                        total_yesterday_kwh = 0
 
                     # ---------------------------------------------------------
                     # 3) Cost today & yesterday
