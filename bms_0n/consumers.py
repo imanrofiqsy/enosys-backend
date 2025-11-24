@@ -31,13 +31,16 @@ class MyConsumer(AsyncWebsocketConsumer):
             return
 
         # Ambil nilai
-        payload = data.get("payload", {})
+        payload = data.get("payload")
+        device = payload.get("device") if payload else None
+        target = payload.get("target") if payload else None
+        value = payload.get("value") if payload else None
 
         # Echo kembali ke client (bisa diubah sesuai kebutuhan)
         await self.send(text_data=json.dumps({
             "type": "ping",
             "topic": "ping",
-            "payload": data
+            "payload": {"device": device, "target": target, "value": value}
         }))
 
     # handler event dari group_send; tipe harus sama: send_dashboard_data
