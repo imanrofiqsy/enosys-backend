@@ -38,18 +38,13 @@ class MyConsumer(AsyncWebsocketConsumer):
         logger.debug("Parsed event=%s, payload=%s, Topic=%s",
                      event_type, payload, topic)
 
-        # ====================================================
-        # CONTOH: Kirim balik ke semua client dalam group
-        # ====================================================
-        await self.channel_layer.group_send(
-            self.group_name,
-            {
-                "type": "ping",   # handler method
-                "event": event_type,
-                "payload": payload,
-                "topic": "ping",
-            }
-        )
+        # Echo kembali ke client (bisa diubah sesuai kebutuhan)
+        await self.send(text_data=json.dumps({
+            "type": "ping",
+            "topic": "ping",
+            "payload": payload
+        }))
+
     # handler event dari group_send; tipe harus sama: send_dashboard_data
     async def send_dashboard_data(self, event):
         data = event.get("data", {})
