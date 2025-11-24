@@ -44,10 +44,10 @@ class MyConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.group_name,
             {
-                "type": "broadcast_message",   # handler method
+                "type": "ping",   # handler method
                 "event": event_type,
                 "payload": payload,
-                "topic": topic,
+                "topic": "ping",
             }
         )
     # handler event dari group_send; tipe harus sama: send_dashboard_data
