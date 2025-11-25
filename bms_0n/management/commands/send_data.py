@@ -85,6 +85,7 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     
                     flux_today = f'''
+                    import "experimental"
                     yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     first = 
