@@ -555,18 +555,27 @@ class Command(BaseCommand):
                                 field = rec.get_field()
 
                                 # gunakan timestamp penuh sebagai key unik
-                                ts = rec.get_time().isoformat()
-                                # time_full = ts.strftime("%Y-%m-%d %H:%M")   # key unik
-                                # time_hour = ts.strftime("%H:%M")            # tampilan jam
+                                ts = rec.get_time()
+                                time_full = ts.strftime("%Y-%m-%d %H:%M")   # key unik
+                                time_hour = ts.strftime("%H:%M")            # tampilan jam
 
                                 value = round(float(rec.get_value()), 2)
-                                entry = {
-                                    "time": ts         # untuk tampilan UI
-                                }
-                                room_data["history"].append(entry)
+
+                                # cari berdasarkan time_full, bukan hanya HH:MM
+                                entry = next((item for item in room_data["history"] 
+                                            if item["time_full"] == time_full), None)
+
+                                if not entry:
+                                    entry = {
+                                        "time_full": time_full,   # untuk uniqueness
+                                        "time": time_hour         # untuk tampilan UI
+                                    }
+                                    room_data["history"].append(entry)
 
                                 entry[field] = value
 
+                        # sort hasil berdasarkan timestamp supaya urut
+                        room_data["history"].sort(key=lambda x: x["time_full"])
                         room_status.append(room_data)
 
 
