@@ -675,10 +675,10 @@ class Command(BaseCommand):
                             # Tentukan apakah ini record pertama atau terakhir
                             # Berdasarkan waktu: yang paling kecil = first, paling besar = last
                             if dev not in first_values or time < first_values[dev]["time"]:
-                                first_values[dev] = {"time": time, "value": val}
+                                first_values[dev] = {"time": time.isoformat(), "value": val}
 
                             if dev not in last_values or time > last_values[dev]["time"]:
-                                last_values[dev] = {"time": time, "value": val}
+                                last_values[dev] = {"time": time.isoformat(), "value": val}
 
                     # Hitung total kWh semua PM
                     total_first = sum(v["value"] for v in first_values.values())
