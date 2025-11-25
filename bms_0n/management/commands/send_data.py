@@ -48,25 +48,30 @@ class Command(BaseCommand):
                     # 1) Total power usage today (kWh)
                     # ---------------------------------------------------------
                     flux_today = f'''
+                    import "experimental"
+                    yesterday_start = experimental.subDuration(d: 1d, from: today())
+                    today_start = today()
                     first = 
                     from(bucket: "{BUCKET}")
-                        |> range(start: today(), stop: now())
+                        |> range(start: yesterday_start, stop: today_start)
                         |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
+                        |> group(columns:["device"])
                         |> sort(columns: ["_time"], desc: false)
                         |> limit(n:1)
 
                     last = 
                     from(bucket: "{BUCKET}")
-                        |> range(start: today(), stop: now())
+                        |> range(start: yesterday_start, stop: today_start)
                         |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
+                        |> group(columns:["device"])
                         |> sort(columns: ["_time"], desc: true)
                         |> limit(n:1)
 
@@ -75,10 +80,28 @@ class Command(BaseCommand):
 
                     tables = query_api.query(flux_today)
 
-                    values = [ round(float(r.get_value()), 3) for t in tables for r in t.records ]
-                    values.sort()  # memastikan urut
+                    first_values = {}
+                    last_values = {}
 
-                    total_today_kwh = round(values[1] - values[0], 3)
+                    for table in tables:
+                        for rec in table.records:
+                            dev = rec.values["device"]
+                            val = float(rec.get_value())
+                            time = rec.get_time()
+
+                            # Tentukan apakah ini record pertama atau terakhir
+                            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+                            if dev not in first_values or time < first_values[dev]["time"]:
+                                first_values[dev] = {"time": time, "value": val}
+
+                            if dev not in last_values or time > last_values[dev]["time"]:
+                                last_values[dev] = {"time": time, "value": val}
+
+                    # Hitung total kWh semua PM
+                    total_first = sum(v["value"] for v in first_values.values())
+                    total_last = sum(v["value"] for v in last_values.values())
+
+                    total_today_kwh = round(total_last - total_first, 3)
 
                     # ---------------------------------------------------------
                     # 2) Total power usage yesterday (kWh)
@@ -96,6 +119,7 @@ class Command(BaseCommand):
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
+                        |> group(columns:["device"])
                         |> sort(columns: ["_time"], desc: false)
                         |> limit(n:1)
 
@@ -107,6 +131,7 @@ class Command(BaseCommand):
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
+                        |> group(columns:["device"])
                         |> sort(columns: ["_time"], desc: true)
                         |> limit(n:1)
 
@@ -115,10 +140,28 @@ class Command(BaseCommand):
 
                     tables = query_api.query(flux_today)
 
-                    values = [ round(float(r.get_value()), 3) for t in tables for r in t.records ]
-                    values.sort()  # memastikan urut
+                    first_values = {}
+                    last_values = {}
 
-                    total_yesterday_kwh = round(values[1] - values[0], 3)
+                    for table in tables:
+                        for rec in table.records:
+                            dev = rec.values["device"]
+                            val = float(rec.get_value())
+                            time = rec.get_time()
+
+                            # Tentukan apakah ini record pertama atau terakhir
+                            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+                            if dev not in first_values or time < first_values[dev]["time"]:
+                                first_values[dev] = {"time": time, "value": val}
+
+                            if dev not in last_values or time > last_values[dev]["time"]:
+                                last_values[dev] = {"time": time, "value": val}
+
+                    # Hitung total kWh semua PM
+                    total_first = sum(v["value"] for v in first_values.values())
+                    total_last = sum(v["value"] for v in last_values.values())
+
+                    total_yesterday_kwh = round(total_last - total_first, 3)
 
                     # ---------------------------------------------------------
                     # 3) Cost today & yesterday
