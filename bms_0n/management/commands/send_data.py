@@ -657,31 +657,31 @@ class Command(BaseCommand):
                     send("system_status", system_status)
                     send("room_status", room_status_data)
 
-                    flux_yesterday = f'''
-                    import "experimental"
-                    yesterday_start = experimental.subDuration(d: 1d, from: today())
-                    today_start = today()
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device =~ /^PM[1-7]$/
-                        )
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 1)
-                    '''
-                    tables = query_api.query(flux_yesterday)
-                    temp = []
-                    for table in tables:
-                        for rec in table.records:
-                            temp.append({
-                                "time": rec.get_time().isoformat(),
-                                "value": round(float(rec.get_value()), 3)
-                            })
+                    # flux_yesterday = f'''
+                    # import "experimental"
+                    # yesterday_start = experimental.subDuration(d: 1d, from: today())
+                    # today_start = today()
+                    # from(bucket: "{BUCKET}")
+                    # |> range(start: today(), stop: now())          // sesuaikan rentang waktu
+                    # |> filter(fn: (r) => 
+                    #         r._measurement == "power_meter_data" and 
+                    #         r._field == "kwh" and
+                    #         r.device =~ /^PM[1-7]$/
+                    #     )
+                    # |> sort(columns: ["_time"], desc: true)
+                    # |> limit(n: 1)
+                    # '''
+                    # tables = query_api.query(flux_yesterday)
+                    # temp = []
+                    # for table in tables:
+                    #     for rec in table.records:
+                    #         temp.append({
+                    #             "time": rec.get_time().isoformat(),
+                    #             "value": round(float(rec.get_value()), 3)
+                    #         })
 
-                    ping_value = safe_json(temp)
-                    send("ping", ping_value)
+                    # ping_value = safe_json(temp)
+                    # send("ping", ping_value)
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
