@@ -668,7 +668,7 @@ class Command(BaseCommand):
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
-                    |> sort(columns: ["_time"], desc: false)
+                    |> sort(columns: ["_time"], desc: true)
                     |> limit(n: 1)
                     '''
                     tables = query_api.query(flux_yesterday)
