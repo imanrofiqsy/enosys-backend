@@ -553,9 +553,11 @@ class Command(BaseCommand):
                                 field = rec.get_field()
                                 time = rec.get_time().strftime("%H:%M")
                                 value = round(float(rec.get_value()), 2)
-                                if time not in room_data["history"]:
-                                    room_data["history"][time] = {"time": time}
-                                room_data["history"][time][field] = value
+                                entry = next((item for item in room_data["history"] if item["time"] == time), None)
+                                if not entry:
+                                    entry = {"time": time}
+                                    room_data["history"].append(entry)
+                                entry[field] = value
 
                         room_status.append(room_data)
 
