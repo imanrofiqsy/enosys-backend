@@ -48,104 +48,76 @@ class Command(BaseCommand):
                     # 1) Total power usage today (kWh)
                     # ---------------------------------------------------------
                     flux_today = f'''
+                    first = 
                     from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
+                        |> range(start: today(), stop: now())
+                        |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
-                    |> sort(columns: ["_time"], desc: false)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
-                    '''
-                    tables = query_api.query(flux_today)
-                    temp = []
-                    for table in tables:
-                        for rec in table.records:
-                            temp.append({
-                                "value": round(float(rec.get_value()), 3)
-                            })
+                        |> sort(columns: ["_time"], desc: false)
+                        |> limit(n:1)
 
-                    flux_today = f'''
+                    last = 
                     from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
+                        |> range(start: today(), stop: now())
+                        |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
+                        |> sort(columns: ["_time"], desc: true)
+                        |> limit(n:1)
+
+                    union(tables: [first, last])
                     '''
 
                     tables = query_api.query(flux_today)
-                    for table in tables:
-                        for rec in table.records:
-                            temp.append({
-                                "value": round(float(rec.get_value()), 3)
-                            })
-                    total_today_kwh = temp[1]["value"] - temp[0]["value"]
-                    total_today_kwh = round(total_today_kwh, 3)
+
+                    values = [ round(float(r.get_value()), 3) for t in tables for r in t.records ]
+                    values.sort()  # memastikan urut
+
+                    total_today_kwh = round(values[1] - values[0], 3)
 
                     # ---------------------------------------------------------
                     # 2) Total power usage yesterday (kWh)
                     # ---------------------------------------------------------
-                    flux_yesterday = f'''
-                    import "experimental"
+                    
+                    flux_today = f'''
                     yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
+                    first = 
                     from(bucket: "{BUCKET}")
-                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
+                        |> range(start: yesterday_start(), stop: today_start())
+                        |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
-                    |> sort(columns: ["_time"], desc: false)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
-                    '''
-                    tables = query_api.query(flux_yesterday)
-                    temp = []
-                    for table in tables:
-                        for rec in table.records:
-                            temp.append({
-                                "value": round(float(rec.get_value()), 3)
-                            })
+                        |> sort(columns: ["_time"], desc: false)
+                        |> limit(n:1)
 
-                    flux_yesterday = f'''
-                    import "experimental"
-                    yesterday_start = experimental.subDuration(d: 1d, from: today())
-                    today_start = today()
+                    last = 
                     from(bucket: "{BUCKET}")
-                    |> range(start: yesterday_start, stop: today_start)          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
+                        |> range(start: yesterday_start(), stop: today_start())
+                        |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
+                        |> sort(columns: ["_time"], desc: true)
+                        |> limit(n:1)
+
+                    union(tables: [first, last])
                     '''
 
-                    tables = query_api.query(flux_yesterday)
-                    for table in tables:
-                        for rec in table.records:
-                            temp.append({
-                                "value": round(float(rec.get_value()), 3)
-                            })
-                    try:
-                        total_yesterday_kwh = temp[1]["value"] - temp[0]["value"]
-                        total_yesterday_kwh = round(total_yesterday_kwh, 3)
-                    except:
-                        total_yesterday_kwh = 0
+                    tables = query_api.query(flux_today)
+
+                    values = [ round(float(r.get_value()), 3) for t in tables for r in t.records ]
+                    values.sort()  # memastikan urut
+
+                    total_yesterday_kwh = round(values[1] - values[0], 3)
 
                     # ---------------------------------------------------------
                     # 3) Cost today & yesterday
