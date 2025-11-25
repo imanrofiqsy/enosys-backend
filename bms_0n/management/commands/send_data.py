@@ -88,7 +88,7 @@ class Command(BaseCommand):
                             temp.append({
                                 "value": round(float(rec.get_value()), 3)
                             })
-                    total_today_kwh = temp[0]["value"] - temp[1]["value"]
+                    total_today_kwh = temp[1]["value"] - temp[0]["value"]
                     total_today_kwh = round(total_today_kwh, 3)
 
                     # ---------------------------------------------------------
@@ -142,7 +142,7 @@ class Command(BaseCommand):
                                 "value": round(float(rec.get_value()), 3)
                             })
                     try:
-                        total_yesterday_kwh = temp[0]["value"] - temp[1]["value"]
+                        total_yesterday_kwh = temp[1]["value"] - temp[0]["value"]
                         total_yesterday_kwh = round(total_yesterday_kwh, 3)
                     except:
                         total_yesterday_kwh = 0
@@ -421,7 +421,7 @@ class Command(BaseCommand):
                                     temp_dev.append({"value": float(rec.get_value())})
                                 except:
                                     pass
-                        dev_kwh = temp_dev[0]["value"] - temp_dev[1]["value"]
+                        dev_kwh = temp_dev[1]["value"] - temp_dev[0]["value"]
                         dev_kwh = round(dev_kwh, 3)
 
                         # AC & lamp state
