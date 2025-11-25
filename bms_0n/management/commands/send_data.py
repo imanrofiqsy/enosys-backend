@@ -674,7 +674,7 @@ class Command(BaseCommand):
                     today_start = today()
                     first = 
                     from(bucket: "{BUCKET}")
-                        |> range(start: today(), stop: now())
+                        |> range(start: yesterday_start, stop: today_start)
                         |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
@@ -686,7 +686,7 @@ class Command(BaseCommand):
 
                     last = 
                     from(bucket: "{BUCKET}")
-                        |> range(start: today(), stop: now())
+                        |> range(start: yesterday_start, stop: today_start)
                         |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
