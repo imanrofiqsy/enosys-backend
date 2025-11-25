@@ -677,67 +677,67 @@ class Command(BaseCommand):
                     send("system_status", system_status)
                     send("room_status", room_status_data)
 
-                    flux_today = f'''
-                    today_start = today()
-                    first = 
-                    from(bucket: "{BUCKET}")
-                        |> range(start: today(), stop: now())
-                        |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device =~ /^PM[1-7]$/
-                        )
-                        |> group(columns:["device"])
-                        |> sort(columns: ["_time"], desc: false)
-                        |> limit(n:1)
+                    # flux_today = f'''
+                    # today_start = today()
+                    # first = 
+                    # from(bucket: "{BUCKET}")
+                    #     |> range(start: today(), stop: now())
+                    #     |> filter(fn: (r) => 
+                    #         r._measurement == "power_meter_data" and 
+                    #         r._field == "kwh" and
+                    #         r.device =~ /^PM[1-7]$/
+                    #     )
+                    #     |> group(columns:["device"])
+                    #     |> sort(columns: ["_time"], desc: false)
+                    #     |> limit(n:1)
 
-                    last = 
-                    from(bucket: "{BUCKET}")
-                        |> range(start: today(), stop: now())
-                        |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device =~ /^PM[1-7]$/
-                        )
-                        |> group(columns:["device"])
-                        |> sort(columns: ["_time"], desc: true)
-                        |> limit(n:1)
+                    # last = 
+                    # from(bucket: "{BUCKET}")
+                    #     |> range(start: today(), stop: now())
+                    #     |> filter(fn: (r) => 
+                    #         r._measurement == "power_meter_data" and 
+                    #         r._field == "kwh" and
+                    #         r.device =~ /^PM[1-7]$/
+                    #     )
+                    #     |> group(columns:["device"])
+                    #     |> sort(columns: ["_time"], desc: true)
+                    #     |> limit(n:1)
 
-                    union(tables: [first, last])
-                    '''
+                    # union(tables: [first, last])
+                    # '''
 
-                    tables = query_api.query(flux_today)
+                    # tables = query_api.query(flux_today)
 
-                    first_values = {}
-                    last_values = {}
+                    # first_values = {}
+                    # last_values = {}
 
-                    for table in tables:
-                        for rec in table.records:
-                            dev = rec.values["device"]
-                            val = float(rec.get_value())
-                            time = rec.get_time()
+                    # for table in tables:
+                    #     for rec in table.records:
+                    #         dev = rec.values["device"]
+                    #         val = float(rec.get_value())
+                    #         time = rec.get_time()
 
-                            # Tentukan apakah ini record pertama atau terakhir
-                            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
-                            if dev not in first_values or time < first_values[dev]["time"]:
-                                first_values[dev] = {"time": time, "value": val}
+                    #         # Tentukan apakah ini record pertama atau terakhir
+                    #         # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+                    #         if dev not in first_values or time < first_values[dev]["time"]:
+                    #             first_values[dev] = {"time": time, "value": val}
 
-                            if dev not in last_values or time > last_values[dev]["time"]:
-                                last_values[dev] = {"time": time, "value": val}
+                    #         if dev not in last_values or time > last_values[dev]["time"]:
+                    #             last_values[dev] = {"time": time, "value": val}
 
-                    # Hitung total kWh semua PM
-                    total_first = sum(v["value"] for v in first_values.values())
-                    total_last = sum(v["value"] for v in last_values.values())
+                    # # Hitung total kWh semua PM
+                    # total_first = sum(v["value"] for v in first_values.values())
+                    # total_last = sum(v["value"] for v in last_values.values())
 
-                    total_today_kwh = round(total_last - total_first, 3)
+                    # total_today_kwh = round(total_last - total_first, 3)
 
-                    first_values_isoformat = {k: {"time": v["time"].isoformat(), "value": v["value"]} for k, v in first_values.items()}
-                    last_values_isoformat = {k: {"time": v["time"].isoformat(), "value": v["value"]} for k, v in last_values.items()}
-                    ping_value = {
-                        "first_values": first_values_isoformat,
-                        "last_values": last_values_isoformat,
-                    }
-                    send("ping", safe_json(ping_value))
+                    # first_values_isoformat = {k: {"time": v["time"].isoformat(), "value": v["value"]} for k, v in first_values.items()}
+                    # last_values_isoformat = {k: {"time": v["time"].isoformat(), "value": v["value"]} for k, v in last_values.items()}
+                    # ping_value = {
+                    #     "first_values": first_values_isoformat,
+                    #     "last_values": last_values_isoformat,
+                    # }
+                    # send("ping", safe_json(ping_value))
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
