@@ -675,10 +675,10 @@ class Command(BaseCommand):
                             # Tentukan apakah ini record pertama atau terakhir
                             # Berdasarkan waktu: yang paling kecil = first, paling besar = last
                             if dev not in first_values or time < first_values[dev]["time"]:
-                                first_values[dev] = {"time": time.isoformat(), "value": val}
+                                first_values[dev] = {"time": time, "value": val}
 
                             if dev not in last_values or time > last_values[dev]["time"]:
-                                last_values[dev] = {"time": time.isoformat(), "value": val}
+                                last_values[dev] = {"time": time, "value": val}
 
                     # Hitung total kWh semua PM
                     total_first = sum(v["value"] for v in first_values.values())
@@ -686,10 +686,12 @@ class Command(BaseCommand):
 
                     total_today_kwh = round(total_last - total_first, 3)
 
-                    ping_value = ({
-                        "first_values" : first_values,
-                        "last_values"  : last_values,
-                    })
+                    first_values_isoformat = {k: {"time": v["time"].isoformat(), "value": v["value"]} for k, v in first_values.items()}
+                    last_values_isoformat = {k: {"time": v["time"].isoformat(), "value": v["value"]} for k, v in last_values.items()}
+                    ping_value = {
+                        "first_values": first_values_isoformat,
+                        "last_values": last_values_isoformat,
+                    }
                     send("ping", safe_json(ping_value))
 
                 except Exception as e:
