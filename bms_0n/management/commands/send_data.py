@@ -630,31 +630,47 @@ class Command(BaseCommand):
                     send("system_status", system_status)
                     send("room_status", room_status_data)
 
-                    # flux_yesterday = f'''
-                    # import "experimental"
-                    # yesterday_start = experimental.subDuration(d: 1d, from: today())
-                    # today_start = today()
-                    # from(bucket: "{BUCKET}")
-                    # |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    # |> filter(fn: (r) => 
-                    #         r._measurement == "power_meter_data" and 
-                    #         r._field == "kwh" and
-                    #         r.device =~ /^PM[1-7]$/
-                    #     )
-                    # |> sort(columns: ["_time"], desc: true)
-                    # |> limit(n: 1)
-                    # '''
-                    # tables = query_api.query(flux_yesterday)
-                    # temp = []
-                    # for table in tables:
-                    #     for rec in table.records:
-                    #         temp.append({
-                    #             "time": rec.get_time().isoformat(),
-                    #             "value": round(float(rec.get_value()), 3)
-                    #         })
+                    flux_today = f'''
+                    import "experimental"
+                    yesterday_start = experimental.subDuration(d: 1d, from: today())
+                    today_start = today()
+                    first = 
+                    from(bucket: "{BUCKET}")
+                        |> range(start: yesterday_start, stop: today_start)
+                        |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device =~ /^PM[1-7]$/
+                        )
+                        |> sort(columns: ["_time"], desc: false)
+                        |> limit(n:1)
 
-                    # ping_value = safe_json(temp)
-                    # send("ping", ping_value)
+                    last = 
+                    from(bucket: "{BUCKET}")
+                        |> range(start: yesterday_start, stop: today_start)
+                        |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device =~ /^PM[1-7]$/
+                        )
+                        |> sort(columns: ["_time"], desc: true)
+                        |> limit(n:1)
+
+                    union(tables: [first, last])
+                    '''
+
+                    tables = query_api.query(flux_today)
+
+                    values = []
+                    for t in tables :
+                        for r in t.records :
+                            values.append({
+                                "time": r.get_time().isoformat(),
+                                "value": round(float(r.get_value()), 3)
+                            })
+
+                    ping_value = safe_json(values)
+                    send("ping", ping_value)
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
