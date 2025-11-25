@@ -671,6 +671,8 @@ class Command(BaseCommand):
                     send("room_status", room_status_data)
 
                     flux_today = f'''
+                    import "experimental"
+                    yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     first = 
                     from(bucket: "{BUCKET}")
