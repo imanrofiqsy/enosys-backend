@@ -560,16 +560,10 @@ class Command(BaseCommand):
                                 # time_hour = ts.strftime("%H:%M")            # tampilan jam
 
                                 value = round(float(rec.get_value()), 2)
-
-                                # cari berdasarkan time_full, bukan hanya HH:MM
-                                entry = next((item for item in room_data["history"] 
-                                            if item["time_full"] == ts), None)
-
-                                if not entry:
-                                    entry = {
-                                        "time": ts         # untuk tampilan UI
-                                    }
-                                    room_data["history"].append(entry)
+                                entry = {
+                                    "time": ts         # untuk tampilan UI
+                                }
+                                room_data["history"].append(entry)
 
                                 entry[field] = value
 
