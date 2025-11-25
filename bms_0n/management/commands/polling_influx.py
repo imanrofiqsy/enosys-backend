@@ -16,47 +16,83 @@ POLL_INTERVAL = int(getattr(settings, "INFLUX_POLL_INTERVAL", 5))
 class Command(BaseCommand):
     help = "Generate dummy Power Meter & Alarm data to InfluxDB"
 
+    def load_last_kwh(self, client, bucket, device):
+        """
+        Load last KWH from InfluxDB.
+        If no data exists → return 1000.0
+        """
+        query_api = client.query_api()
+
+        flux = f'''
+        from(bucket: "{bucket}")
+            |> range(start: -30d)
+            |> filter(fn: (r) =>
+                r._measurement == "power_meter_data" and
+                r._field == "kwh" and
+                r.device == "{device}"
+            )
+            |> last()
+        '''
+
+        tables = query_api.query(flux)
+
+        for table in tables:
+            for rec in table.records:
+                try:
+                    return float(rec.get_value())
+                except:
+                    pass
+
+        # default jika tidak ada data
+        return 1000.0
+
     def handle(self, *args, **options):
-        # init client (sync)
+        # init influx client
         client = InfluxDBClient(
             url=settings.INFLUXDB["url"],
             token=settings.INFLUXDB["token"],
             org=settings.INFLUXDB["org"],
         )
         write_api = client.write_api(write_options=SYNCHRONOUS)
-
+        query_api = client.query_api()
         bucket = settings.INFLUXDB["bucket"]
 
-        self.stdout.write(self.style.SUCCESS("Starting Dummy Data Generator for InfluxDB"))
+        self.stdout.write(self.style.SUCCESS("Starting Dummy Data Generator (with load state from InfluxDB)"))
+
+        # ============================================
+        # LOAD INITIAL STATE KWH DARI INFLUX
+        # ============================================
+        kwh_counters = {}
+        for i in range(1, 9):
+            device = f"PM{i}"
+            last_value = self.load_last_kwh(client, bucket, device)
+            kwh_counters[device] = round(last_value, 3)
+
+        logger.info(f"Loaded KWH state from InfluxDB: {kwh_counters}")
 
         try:
             while True:
                 timestamp = datetime.now(timezone.utc)
 
-                # === 1) Generate Power Meter Dummy Data ===
-                # simpan counter di class
-                if not hasattr(self, "kwh_counters"):
-                    self.kwh_counters = {f"PM{i}": 1000.0 for i in range(1, 9)}
-
                 power_points = []
                 for i in range(1, 9):
                     device = f"PM{i}"
 
-                    # naik 0.01 – 0.05 kWh tiap interval
+                    # Increase cumulative KWH
                     delta = random.uniform(0.01, 0.10)
-                    self.kwh_counters[device] += delta
-                    kwh = round(self.kwh_counters[device], 3)
+                    kwh_counters[device] += delta
+                    kwh = round(kwh_counters[device], 3)
 
                     voltage = round(random.uniform(210, 240), 2)
                     ampere = round(random.uniform(5, 25), 2)
                     temperature = round(random.uniform(30, 80), 2)
-                    ac = round(random.uniform(0, 1))
-                    lamp = round(random.uniform(0, 1))
+                    ac = random.randint(0, 1)
+                    lamp = random.randint(0, 1)
 
                     point = (
                         Point("power_meter_data")
                         .tag("device", device)
-                        .field("kwh", kwh)  # cumulative!
+                        .field("kwh", kwh)
                         .field("voltage", voltage)
                         .field("ampere", ampere)
                         .field("temperature", temperature)
@@ -66,10 +102,9 @@ class Command(BaseCommand):
                     )
                     power_points.append(point)
 
-                # === 2) Generate Alarm Dummy Data ===
+                # Alarm random 30%
                 alarm_points = []
-                # Probabilitas muncul alarm
-                if random.random() < 0.3:  # 30% chance
+                if random.random() < 0.3:
                     sources = [f"PM{i}" for i in range(1, 9)]
                     severities = ["Low", "Medium", "High", "Critical"]
                     messages = [
@@ -93,11 +128,14 @@ class Command(BaseCommand):
                     )
                     alarm_points.append(alarm_point)
 
-                # === 3) Tulis ke Influx ===
+                # Write to Influx
                 all_points = power_points + alarm_points
                 write_api.write(bucket=bucket, record=all_points)
 
-                logger.info(f"Written {len(power_points)} power data + {len(alarm_points)} alarms at {timestamp}")
+                logger.info(
+                    f"Written {len(power_points)} PM data + {len(alarm_points)} alarms at {timestamp}"
+                )
+
                 time.sleep(POLL_INTERVAL)
 
         except KeyboardInterrupt:
