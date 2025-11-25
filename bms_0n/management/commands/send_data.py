@@ -563,7 +563,7 @@ class Command(BaseCommand):
 
                                 # cari berdasarkan time_full, bukan hanya HH:MM
                                 entry = next((item for item in room_data["history"] 
-                                            if item["time_full"] == time_full), None)
+                                            if item["time_full"] == ts), None)
 
                                 if not entry:
                                     entry = {
