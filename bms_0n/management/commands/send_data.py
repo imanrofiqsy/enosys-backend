@@ -642,6 +642,7 @@ class Command(BaseCommand):
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
+                        |> group(columns:["device"])
                         |> sort(columns: ["_time"], desc: false)
                         |> limit(n:1)
 
@@ -653,6 +654,7 @@ class Command(BaseCommand):
                             r._field == "kwh" and
                             r.device =~ /^PM[1-7]$/
                         )
+                        |> group(columns:["device"])
                         |> sort(columns: ["_time"], desc: true)
                         |> limit(n:1)
 
@@ -661,16 +663,33 @@ class Command(BaseCommand):
 
                     tables = query_api.query(flux_today)
 
-                    values = []
-                    for t in tables :
-                        for r in t.records :
-                            values.append({
-                                "time": r.get_time().isoformat(),
-                                "device": r.values.get("device"),
-                                "value": round(float(r.get_value()), 3)
-                            })
+                    first_values = {}
+                    last_values = {}
 
-                    ping_value = safe_json(values)
+                    for table in tables:
+                        for rec in table.records:
+                            dev = rec.values["device"]
+                            val = float(rec.get_value())
+                            time = rec.get_time()
+
+                            # Tentukan apakah ini record pertama atau terakhir
+                            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+                            if dev not in first_values or time < first_values[dev]["time"]:
+                                first_values[dev] = {"time": time, "value": val}
+
+                            if dev not in last_values or time > last_values[dev]["time"]:
+                                last_values[dev] = {"time": time, "value": val}
+
+                    # Hitung total kWh semua PM
+                    total_first = sum(v["value"] for v in first_values.values())
+                    total_last = sum(v["value"] for v in last_values.values())
+
+                    total_today_kwh = round(total_last - total_first, 3)
+
+                    ping_value = ({
+                        "first_values" : first_values,
+                        "last_values"  : last_values,
+                    })
                     send("ping", ping_value)
 
                 except Exception as e:
