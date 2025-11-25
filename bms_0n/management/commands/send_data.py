@@ -671,12 +671,10 @@ class Command(BaseCommand):
                     send("room_status", room_status_data)
 
                     flux_today = f'''
-                    import "experimental"
-                    yesterday_start = experimental.subDuration(d: 1d, from: today())
                     today_start = today()
                     first = 
                     from(bucket: "{BUCKET}")
-                        |> range(start: yesterday_start, stop: today_start)
+                        |> range(start: today(), stop: now())
                         |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
@@ -688,7 +686,7 @@ class Command(BaseCommand):
 
                     last = 
                     from(bucket: "{BUCKET}")
-                        |> range(start: yesterday_start, stop: today_start)
+                        |> range(start: today(), stop: now())
                         |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
