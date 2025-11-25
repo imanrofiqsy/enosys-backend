@@ -128,7 +128,7 @@ INFLUXDB = {
     "url": os.getenv("INFLUXDB_URL", "https://us-east-1-1.aws.cloud2.influxdata.com"),
     "token": os.getenv("INFLUXDB_TOKEN", ""),
     "org": os.getenv("INFLUXDB_ORG", "ENOSYS"),
-    "bucket": os.getenv("INFLUXDB_BUCKET", "PLC_DATA"),
+    "bucket": os.getenv("INFLUXDB_BUCKET", "plc_data"),
 }
 
 # Poll interval (detik)
