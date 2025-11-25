@@ -690,7 +690,7 @@ class Command(BaseCommand):
                         "first_values" : first_values,
                         "last_values"  : last_values,
                     })
-                    send("ping", ping_value)
+                    send("ping", safe_json(ping_value))
 
                 except Exception as e:
                     logger.exception("Failed building/sending dashboard payload: %s", e)
