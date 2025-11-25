@@ -576,6 +576,7 @@ class Command(BaseCommand):
 
                         # sort hasil berdasarkan timestamp supaya urut
                         room_data["history"].sort(key=lambda x: x["time_full"])
+                        room_status.append(room_data)
 
 
                     # -------------------------
