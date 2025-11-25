@@ -224,49 +224,56 @@ class Command(BaseCommand):
                     # ---------------------------------------------------------
                     # 6) Total solar output today (PM8)
                     # ---------------------------------------------------------
-                    flux_solar = f'''
+                    flux_today = f'''
+                    first = 
                     from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
+                        |> range(start: today(), stop: now())
+                        |> filter(fn: (r) => 
+                            r._measurement == "power_meter_data" and 
+                            r._field == "kwh" and
+                            r.device =="{PM_SOLAR}"
+                        )
+                        |> sort(columns: ["_time"], desc: false)
+                        |> limit(n:1)
+
+                    last = 
+                    from(bucket: "{BUCKET}")
+                        |> range(start: today(), stop: now())
+                        |> filter(fn: (r) => 
                             r._measurement == "power_meter_data" and 
                             r._field == "kwh" and
                             r.device == "{PM_SOLAR}"
                         )
-                    |> sort(columns: ["_time"], desc: false)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
-                    '''
-                    tables = query_api.query(flux_solar)
-                    temp = []
-                    for table in tables:
-                        for rec in table.records:
-                            temp.append({
-                                "value": round(float(rec.get_value()), 3)
-                            })
+                        |> sort(columns: ["_time"], desc: true)
+                        |> limit(n:1)
 
-                    flux_solar = f'''
-                    from(bucket: "{BUCKET}")
-                    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-                    |> filter(fn: (r) => 
-                            r._measurement == "power_meter_data" and 
-                            r._field == "kwh" and
-                            r.device == "{PM_SOLAR}"
-                        )
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 1)
-                    |> group(columns: ["_field"])
-                    |> sum()
+                    union(tables: [first, last])
                     '''
 
-                    tables = query_api.query(flux_solar)
+                    tables = query_api.query(flux_today)
+
+                    first_values = {}
+                    last_values = {}
+
                     for table in tables:
                         for rec in table.records:
-                            temp.append({
-                                "value": round(float(rec.get_value()), 3)
-                            })
-                    solar_today_kwh = temp[0]["value"] - temp[1]["value"]
-                    solar_today_kwh = round(solar_today_kwh, 3)
+                            dev = rec.values["device"]
+                            val = float(rec.get_value())
+                            time = rec.get_time()
+
+                            # Tentukan apakah ini record pertama atau terakhir
+                            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+                            if dev not in first_values or time < first_values[dev]["time"]:
+                                first_values[dev] = {"time": time, "value": val}
+
+                            if dev not in last_values or time > last_values[dev]["time"]:
+                                last_values[dev] = {"time": time, "value": val}
+
+                    # Hitung total kWh semua PM
+                    total_first = sum(v["value"] for v in first_values.values())
+                    total_last = sum(v["value"] for v in last_values.values())
+
+                    solar_today_kwh = round(total_last - total_first, 3)
 
                     # ---------------------------------------------------------
                     # PLN today (PM1..PM7) for solar share
