@@ -555,7 +555,7 @@ class Command(BaseCommand):
                                 field = rec.get_field()
 
                                 # gunakan timestamp penuh sebagai key unik
-                                ts = rec.get_time()
+                                ts = rec.get_time().astimezone(timezone(timedelta(hours=7)))  # Waktu Jakarta (UTC+7)
                                 time_full = ts.strftime("%Y-%m-%d %H:%M")   # key unik
                                 time_hour = ts.strftime("%H:%M")            # tampilan jam
 
