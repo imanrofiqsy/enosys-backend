@@ -556,8 +556,8 @@ class Command(BaseCommand):
 
                                 # gunakan timestamp penuh sebagai key unik
                                 ts = rec.get_time().isoformat()
-                                time_full = ts.strftime("%Y-%m-%d %H:%M")   # key unik
-                                time_hour = ts.strftime("%H:%M")            # tampilan jam
+                                # time_full = ts.strftime("%Y-%m-%d %H:%M")   # key unik
+                                # time_hour = ts.strftime("%H:%M")            # tampilan jam
 
                                 value = round(float(rec.get_value()), 2)
 
@@ -567,8 +567,7 @@ class Command(BaseCommand):
 
                                 if not entry:
                                     entry = {
-                                        "time_full": time_full,   # untuk uniqueness
-                                        "time": time_hour         # untuk tampilan UI
+                                        "time": ts         # untuk tampilan UI
                                     }
                                     room_data["history"].append(entry)
 
