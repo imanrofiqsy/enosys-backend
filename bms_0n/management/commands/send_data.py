@@ -538,7 +538,7 @@ class Command(BaseCommand):
                         # History for power and temperature (hourly for the last 24 hours)
                         flux_history = f'''
                         from(bucket: "{BUCKET}")
-                        |> range(start: {datetime.now(timezone(timedelta(hours=7))).date()}T00:00:00Z, stop: now())
+                        |> range(start: -24h, stop: now())
                         |> filter(fn: (r) =>
                             r._measurement == "power_meter_data" and
                             r.device == "{dev}" and (r._field == "kwh" or r._field == "temperature" or r._field == "ampere" or r._field == "voltage")
