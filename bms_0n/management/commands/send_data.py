@@ -538,28 +538,45 @@ class Command(BaseCommand):
                         # History for power and temperature (hourly for the last 24 hours)
                         flux_history = f'''
                         from(bucket: "{BUCKET}")
-                        |> range(start: -6h, stop: now())
+                        |> range(start: -24h)
                         |> filter(fn: (r) =>
                             r._measurement == "power_meter_data" and
-                            r.device == "{dev}" and (r._field == "kwh" or r._field == "temperature" or r._field == "ampere" or r._field == "voltage")
+                            r.device == "{dev}" and 
+                            (r._field == "kwh" or r._field == "temperature" or 
+                            r._field == "ampere" or r._field == "voltage")
                         )
-                        |> sort(columns: ["_time"], desc: true)
-                        |> limit(n: 20)
+                        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                        |> keep(columns: ["_time", "_value", "_field"])
                         '''
                         tables_history = query_api.query(flux_history)
 
                         for table in tables_history:
                             for rec in table.records:
                                 field = rec.get_field()
-                                time = rec.get_time().strftime("%H:%M")
+
+                                # gunakan timestamp penuh sebagai key unik
+                                ts = rec.get_time()
+                                time_full = ts.strftime("%Y-%m-%d %H:%M")   # key unik
+                                time_hour = ts.strftime("%H:%M")            # tampilan jam
+
                                 value = round(float(rec.get_value()), 2)
-                                entry = next((item for item in room_data["history"] if item["time"] == time), None)
+
+                                # cari berdasarkan time_full, bukan hanya HH:MM
+                                entry = next((item for item in room_data["history"] 
+                                            if item["time_full"] == time_full), None)
+
                                 if not entry:
-                                    entry = {"time": time}
+                                    entry = {
+                                        "time_full": time_full,   # untuk uniqueness
+                                        "time": time_hour         # untuk tampilan UI
+                                    }
                                     room_data["history"].append(entry)
+
                                 entry[field] = value
 
-                        room_status.append(room_data)
+                        # sort hasil berdasarkan timestamp supaya urut
+                        room_data["history"].sort(key=lambda x: x["time_full"])
+
 
                     # -------------------------
                     # Build payload
