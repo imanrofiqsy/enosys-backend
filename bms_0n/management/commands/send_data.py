@@ -666,6 +666,7 @@ class Command(BaseCommand):
                         for r in t.records :
                             values.append({
                                 "time": r.get_time().isoformat(),
+                                "device": r.values.get("device"),
                                 "value": round(float(r.get_value()), 3)
                             })
 
