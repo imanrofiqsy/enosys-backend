@@ -2,7 +2,7 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 import logging
-from .management.commands.send_data import build_dashboard_payload
+# from .management.commands.send_data import build_dashboard_payload
 
 logger = logging.getLogger(__name__)
 
