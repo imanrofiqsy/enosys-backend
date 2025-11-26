@@ -1,3 +1,4 @@
+# bms_0n/utils/send_data_single.py
 import logging
 import math
 from datetime import datetime, timezone, timedelta
@@ -8,30 +9,107 @@ from influxdb_client import InfluxDBClient
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-INFLUX = settings.INFLUXDB
-BUCKET = INFLUX["bucket"]
-ORG = INFLUX["org"]
+logger = logging.getLogger(__name__)
 
-# cost per kWh (currency per kWh) — set in settings or default
-COST_PER_KWH = float(getattr(settings, "COST_PER_KWH", 1444))
+# ---- GLOBALS (diisi oleh initialize()) ----
+BUCKET = None
+COST_PER_KWH = None
+PM_SOLAR = None
+PM_LIST = None
+PM_GRID = None
+ONLINE_THRESHOLD_SECONDS = None
 
-# devices
-PM_SOLAR = "PM8"
-PM_LIST = [f"PM{i}" for i in range(1, 9)]
-PM_GRID = [f"PM{i}" for i in range(1, 8)]  # 1..7 -> main PLN per asumsi
+client = None
+query_api = None
+channel_layer = None
+group_name = None
 
-# online freshness threshold (seconds)
-ONLINE_THRESHOLD_SECONDS = 90
 
-client = InfluxDBClient(url=INFLUX["url"], token=INFLUX["token"], org=ORG, timeout=60000)
-query_api = client.query_api()
-channel_layer = get_channel_layer()
-group_name = "dashboard_group"
+# -------------------------
+# helpers untuk akses settings (tidak dieksekusi saat import)
+# -------------------------
+def get_influx_settings():
+    return getattr(settings, "INFLUXDB", {})
 
+
+def get_influx_client():
+    influx = get_influx_settings()
+    return InfluxDBClient(
+        url=influx.get("url", ""),
+        token=influx.get("token", ""),
+        org=influx.get("org", "")
+    )
+
+
+def get_bucket():
+    influx = get_influx_settings()
+    return influx.get("bucket", "")
+
+
+def get_cost_per_kwh():
+    return float(getattr(settings, "COST_PER_KWH", 1444))
+
+
+def get_online_threshold_seconds():
+    return int(getattr(settings, "DASHBOARD_ONLINE_THRESHOLD", 90))
+
+
+# -------------------------
+# initialize: dipanggil sebelum melakukan query / kirim
+# -------------------------
+def initialize():
+    global client, query_api, BUCKET, channel_layer, group_name
+    global PM_SOLAR, PM_LIST, PM_GRID, COST_PER_KWH, ONLINE_THRESHOLD_SECONDS
+
+    # Influx client & query api
+    client = get_influx_client()
+    try:
+        query_api = client.query_api()
+    except Exception as e:
+        # jika client gagal dibuat, set query_api ke None dan log error
+        logger.exception("Failed creating Influx query_api: %s", e)
+        query_api = None
+
+    BUCKET = get_bucket()
+
+    # Channel layer (pastikan Django sudah siap)
+    try:
+        channel_layer = get_channel_layer()
+    except Exception as e:
+        logger.exception("Failed getting channel layer: %s", e)
+        channel_layer = None
+
+    group_name = getattr(settings, "DASHBOARD_CHANNEL_GROUP", "dashboard_group")
+
+    COST_PER_KWH = get_cost_per_kwh()
+    ONLINE_THRESHOLD_SECONDS = get_online_threshold_seconds()
+
+    PM_LIST = [f"PM{i}" for i in range(1, 9)]
+    PM_GRID = [f"PM{i}" for i in range(1, 8)]
+    PM_SOLAR = "PM8"
+
+
+# -------------------------
+# safety wrapper untuk query
+# -------------------------
+def safe_query(flux):
+    """Jalankan query Influx, kembalikan list(table) atau [] saat error."""
+    if query_api is None:
+        logger.warning("safe_query called but query_api is None")
+        return []
+    try:
+        tables = query_api.query(flux)
+        return tables
+    except Exception as e:
+        logger.exception("Influx query failed: %s", e)
+        return []
+
+
+# -------------------------
+# fungsi-fungsi utama (sebagian besar sama logikanya dengan versi sebelumnya)
+# -------------------------
 def calculate_total_today_kwh():
-    # ---------------------------------------------------------
-    # 1) Total power usage today (kWh)
-    # ---------------------------------------------------------
+    global BUCKET
     flux_today = f'''
     first = 
     from(bucket: "{BUCKET}")
@@ -60,37 +138,38 @@ def calculate_total_today_kwh():
     union(tables: [first, last])
     '''
 
-    tables = query_api.query(flux_today)
+    tables = safe_query(flux_today)
 
     first_values = {}
     last_values = {}
 
     for table in tables:
         for rec in table.records:
-            dev = rec.values["device"]
-            val = float(rec.get_value())
-            time = rec.get_time()
+            try:
+                dev = rec.values.get("device")
+                val = float(rec.get_value() or 0.0)
+                time = rec.get_time()
+            except Exception:
+                continue
 
-            # Tentukan apakah ini record pertama atau terakhir
-            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+            if dev is None:
+                continue
+
             if dev not in first_values or time < first_values[dev]["time"]:
                 first_values[dev] = {"time": time, "value": val}
 
             if dev not in last_values or time > last_values[dev]["time"]:
                 last_values[dev] = {"time": time, "value": val}
 
-    # Hitung total kWh semua PM
-    total_first = sum(v["value"] for v in first_values.values())
-    total_last = sum(v["value"] for v in last_values.values())
+    total_first = sum(v["value"] for v in first_values.values()) if first_values else 0.0
+    total_last = sum(v["value"] for v in last_values.values()) if last_values else 0.0
 
-    total_today_kwh = round(total_last - total_first, 3)
+    total_today_kwh = round(max(0.0, total_last - total_first), 3)
     return total_today_kwh
 
+
 def calculate_total_yesterday_kwh():
-    # ---------------------------------------------------------
-    # 2) Total power usage yesterday (kWh)
-    # ---------------------------------------------------------
-    
+    global BUCKET
     flux_today = f'''
     import "experimental"
     yesterday_start = experimental.subDuration(d: 1d, from: today())
@@ -122,31 +201,35 @@ def calculate_total_yesterday_kwh():
     union(tables: [first, last])
     '''
 
-    tables = query_api.query(flux_today)
+    tables = safe_query(flux_today)
 
     first_values = {}
     last_values = {}
 
     for table in tables:
         for rec in table.records:
-            dev = rec.values["device"]
-            val = float(rec.get_value())
-            time = rec.get_time()
+            try:
+                dev = rec.values.get("device")
+                val = float(rec.get_value() or 0.0)
+                time = rec.get_time()
+            except Exception:
+                continue
 
-            # Tentukan apakah ini record pertama atau terakhir
-            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+            if dev is None:
+                continue
+
             if dev not in first_values or time < first_values[dev]["time"]:
                 first_values[dev] = {"time": time, "value": val}
 
             if dev not in last_values or time > last_values[dev]["time"]:
                 last_values[dev] = {"time": time, "value": val}
 
-    # Hitung total kWh semua PM
-    total_first = sum(v["value"] for v in first_values.values())
-    total_last = sum(v["value"] for v in last_values.values())
+    total_first = sum(v["value"] for v in first_values.values()) if first_values else 0.0
+    total_last = sum(v["value"] for v in last_values.values()) if last_values else 0.0
 
-    total_yesterday_kwh = round(total_last - total_first, 3)
+    total_yesterday_kwh = round(max(0.0, total_last - total_first), 3)
     return total_yesterday_kwh
+
 
 def pct_change(new, old):
     if old == 0:
@@ -155,10 +238,9 @@ def pct_change(new, old):
         return float("inf") if new > 0 else float("-inf")
     return round(((new - old) / old) * 100.0, 2)
 
+
 def alarm_counts():
-    # ---------------------------------------------------------
-    # 5) Alarms (active count & high priority)
-    # ---------------------------------------------------------
+    global BUCKET
     flux_alarms_active = f'''
     from(bucket: "{BUCKET}")
     |> range(start: -7d)
@@ -169,13 +251,12 @@ def alarm_counts():
     |> count()
     '''
 
-    tables = query_api.query(flux_alarms_active)
     active_alarm_count = 0
-    for table in tables:
+    for table in safe_query(flux_alarms_active):
         for rec in table.records:
             try:
-                active_alarm_count += int(rec.get_value())
-            except:
+                active_alarm_count += int(rec.get_value() or 0)
+            except Exception:
                 pass
 
     flux_alarms_high = f'''
@@ -189,20 +270,19 @@ def alarm_counts():
     |> count()
     '''
 
-    tables = query_api.query(flux_alarms_high)
     high_alarm_count = 0
-    for table in tables:
+    for table in safe_query(flux_alarms_high):
         for rec in table.records:
             try:
-                high_alarm_count += int(rec.get_value())
-            except:
+                high_alarm_count += int(rec.get_value() or 0)
+            except Exception:
                 pass
+
     return active_alarm_count, high_alarm_count
 
+
 def calculate_solar_today_kwh():
-    # ---------------------------------------------------------
-    # 6) Total solar output today (PM8)
-    # ---------------------------------------------------------
+    global BUCKET, PM_SOLAR
     flux_today = f'''
     first = 
     from(bucket: "{BUCKET}")
@@ -210,7 +290,7 @@ def calculate_solar_today_kwh():
         |> filter(fn: (r) => 
             r._measurement == "power_meter_data" and 
             r._field == "kwh" and
-            r.device =="{PM_SOLAR}"
+            r.device == "{PM_SOLAR}"
         )
         |> sort(columns: ["_time"], desc: false)
         |> limit(n:1)
@@ -229,39 +309,45 @@ def calculate_solar_today_kwh():
     union(tables: [first, last])
     '''
 
-    tables = query_api.query(flux_today)
+    tables = safe_query(flux_today)
 
     first_values = {}
     last_values = {}
 
     for table in tables:
         for rec in table.records:
-            dev = rec.values["device"]
-            val = float(rec.get_value())
-            time = rec.get_time()
+            try:
+                dev = rec.values.get("device")
+                val = float(rec.get_value() or 0.0)
+                time = rec.get_time()
+            except Exception:
+                continue
 
-            # Tentukan apakah ini record pertama atau terakhir
-            # Berdasarkan waktu: yang paling kecil = first, paling besar = last
+            if dev is None:
+                continue
+
             if dev not in first_values or time < first_values[dev]["time"]:
                 first_values[dev] = {"time": time, "value": val}
 
             if dev not in last_values or time > last_values[dev]["time"]:
                 last_values[dev] = {"time": time, "value": val}
 
-    # Hitung total kWh semua PM
-    total_first = sum(v["value"] for v in first_values.values())
-    total_last = sum(v["value"] for v in last_values.values())
+    total_first = sum(v["value"] for v in first_values.values()) if first_values else 0.0
+    total_last = sum(v["value"] for v in last_values.values()) if last_values else 0.0
 
-    solar_today_kwh = round(total_last - total_first, 3)
+    solar_today_kwh = round(max(0.0, total_last - total_first), 3)
     return solar_today_kwh
 
+
 def pct_solar_share(solar_kwh, total_kwh):
-    return round((solar_kwh / total_kwh) * 100.0, 2) if total_kwh > 0 else 0.0
+    try:
+        return round((solar_kwh / total_kwh) * 100.0, 2) if total_kwh > 0 else 0.0
+    except Exception:
+        return 0.0
+
 
 def realtime_chart():
-    # ---------------------------------------------------------
-    # 7) Realtime chart: Minute-by-minute difference total power (PM1..PM7)
-    # ---------------------------------------------------------
+    global BUCKET
     flux_realtime_24 = f'''
     from(bucket: "{BUCKET}")
     |> range(start: -24h)
@@ -276,7 +362,7 @@ def realtime_chart():
     |> sum(column: "_value")
     '''
 
-    tables = query_api.query(flux_realtime_24)
+    tables = safe_query(flux_realtime_24)
 
     realtime_points = []
     for table in tables:
@@ -284,20 +370,18 @@ def realtime_chart():
             try:
                 realtime_points.append({
                     "time": rec.get_time().isoformat(),
-                    "value": round(float(rec.get_value()), 3)
+                    "value": round(float(rec.get_value() or 0.0), 3)
                 })
-            except:
+            except Exception:
                 pass
 
-    # keep last 24 hours only
+    # keep last 24 points (1 per hour in previous version — leaving original behaviour)
     realtime_points = realtime_points[-24:]
     return realtime_points
 
+
 def weekly_pln_vs_solar():
-    # -------------------------
-    # 8) PLN vs Solar per day for last 7 days
-    # -------------------------
-    # Simpler approach: query per-day sums for pln and solar separately
+    global BUCKET, PM_SOLAR
     flux_weekly_pln = f'''
     from(bucket: "{BUCKET}")
     |> range(start: -7d)
@@ -320,43 +404,39 @@ def weekly_pln_vs_solar():
     |> keep(columns: ["_time", "_value", "device"])
     '''
 
-    tables_pln = query_api.query(flux_weekly_pln)
-    tables_solar = query_api.query(flux_weekly_solar)
+    tables_pln = safe_query(flux_weekly_pln)
+    tables_solar = safe_query(flux_weekly_solar)
 
     def records_to_daily_energy(tables):
-        # Simpan per device
         data_per_device = {}
 
         for table in tables:
             for rec in table.records:
-                device = rec.values.get("device")
-                t = rec.get_time().astimezone(timezone.utc).date()
-                val = float(rec.get_value() or 0)
+                try:
+                    device = rec.values.get("device")
+                    t = rec.get_time().astimezone(timezone.utc).date()
+                    val = float(rec.get_value() or 0.0)
+                except Exception:
+                    continue
 
                 if device not in data_per_device:
                     data_per_device[device] = {}
 
-                # simpan setiap sample berdasarkan tanggal
                 if t not in data_per_device[device]:
                     data_per_device[device][t] = []
 
                 data_per_device[device][t].append(val)
 
-        # hitung energi per hari
         day_energy = {}
 
         for device, days in data_per_device.items():
             for day, values in days.items():
-                # kWh cumulative → daily energy = last - first
                 energy = max(values) - min(values)
-
                 day_str = str(day)
                 day_energy[day_str] = day_energy.get(day_str, 0) + energy
 
-        # format output 7 hari terakhir
         today = datetime.now(timezone.utc).date()
         out = []
-
         for offset in reversed(range(7)):
             day = today - timedelta(days=offset)
             day_str = str(day)
@@ -364,88 +444,96 @@ def weekly_pln_vs_solar():
                 "date": day_str,
                 "value": round(day_energy.get(day_str, 0.0), 3)
             })
-
         return out
 
     weekly_pln = records_to_daily_energy(tables_pln)
     weekly_solar = records_to_daily_energy(tables_solar)
     return weekly_pln, weekly_solar
 
+
 def room_overview():
-    # ---------------------------------------------------------
-    # 9) Overview per room: power, AC, lamp
-    # ---------------------------------------------------------
+    global BUCKET, PM_GRID
     overview = []
 
+    if not PM_GRID:
+        return overview
+
     for dev in PM_GRID:
-        # Power today per device
-        flux_dev = f'''
-    from(bucket: "{BUCKET}")
-    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-    |> filter(fn: (r) =>
-        r._measurement == "power_meter_data"
-        and r.device == "{dev}"
-        and r._field == "kwh"
-    )
-    |> sort(columns: ["_time"], desc: false)
-    |> limit(n: 1)
-    |> group(columns: ["_field"])
-    |> sum()
-    '''
-        tables_dev = query_api.query(flux_dev)
-        dev_kwh = 0.0
+        # Power today per device (first & last)
+        flux_dev_first = f'''
+        from(bucket: "{BUCKET}")
+        |> range(start: today(), stop: now())
+        |> filter(fn: (r) =>
+            r._measurement == "power_meter_data"
+            and r.device == "{dev}"
+            and r._field == "kwh"
+        )
+        |> sort(columns: ["_time"], desc: false)
+        |> limit(n: 1)
+        |> group(columns: ["_field"])
+        |> sum()
+        '''
+        tables_dev_first = safe_query(flux_dev_first)
         temp_dev = []
-        for table in tables_dev:
+        for table in tables_dev_first:
             for rec in table.records:
                 try:
-                    temp_dev.append({"value": float(rec.get_value())})
-                except:
+                    temp_dev.append({"value": float(rec.get_value() or 0.0)})
+                except Exception:
                     pass
 
-        flux_dev = f'''
-    from(bucket: "{BUCKET}")
-    |> range(start: today(), stop: now())          // sesuaikan rentang waktu
-    |> filter(fn: (r) =>
-        r._measurement == "power_meter_data"
-        and r.device == "{dev}"
-        and r._field == "kwh"
-    )
-    |> sort(columns: ["_time"], desc: true)
-    |> limit(n: 1)
-    |> group(columns: ["_field"])
-    |> sum()
-    '''
-        tables_dev = query_api.query(flux_dev)
-        for table in tables_dev:
+        flux_dev_last = f'''
+        from(bucket: "{BUCKET}")
+        |> range(start: today(), stop: now())
+        |> filter(fn: (r) =>
+            r._measurement == "power_meter_data"
+            and r.device == "{dev}"
+            and r._field == "kwh"
+        )
+        |> sort(columns: ["_time"], desc: true)
+        |> limit(n: 1)
+        |> group(columns: ["_field"])
+        |> sum()
+        '''
+        tables_dev_last = safe_query(flux_dev_last)
+        for table in tables_dev_last:
             for rec in table.records:
                 try:
-                    temp_dev.append({"value": float(rec.get_value())})
-                except:
+                    temp_dev.append({"value": float(rec.get_value() or 0.0)})
+                except Exception:
                     pass
-        dev_kwh = temp_dev[1]["value"] - temp_dev[0]["value"]
-        dev_kwh = round(dev_kwh, 3)
+
+        dev_kwh = 0.0
+        try:
+            if len(temp_dev) >= 2:
+                dev_kwh = round(max(0.0, temp_dev[1]["value"] - temp_dev[0]["value"]), 3)
+        except Exception:
+            dev_kwh = 0.0
 
         # AC & lamp state
         flux_state = f'''
-    from(bucket: "{BUCKET}")
-    |> range(start: -2h)
-    |> filter(fn: (r) =>
-        r._measurement == "power_meter_data"
-        and r.device == "{dev}"
-        and (r._field == "ac" or r._field == "lamp")
-    )
-    |> last()
-    '''
-        tables_state = query_api.query(flux_state)
+        from(bucket: "{BUCKET}")
+        |> range(start: -2h)
+        |> filter(fn: (r) =>
+            r._measurement == "power_meter_data"
+            and r.device == "{dev}"
+            and (r._field == "ac" or r._field == "lamp")
+        )
+        |> last()
+        '''
+        tables_state = safe_query(flux_state)
         ac_state = None
         lamp_state = None
 
         for table in tables_state:
             for rec in table.records:
-                if rec.get_field() == "ac":
-                    ac_state = bool(rec.get_value())
-                elif rec.get_field() == "lamp":
-                    lamp_state = bool(rec.get_value())
+                try:
+                    if rec.get_field() == "ac":
+                        ac_state = bool(rec.get_value())
+                    elif rec.get_field() == "lamp":
+                        lamp_state = bool(rec.get_value())
+                except Exception:
+                    pass
 
         overview.append({
             "device": dev,
@@ -453,12 +541,12 @@ def room_overview():
             "ac": ac_state,
             "lamp": lamp_state
         })
+
     return overview
 
+
 def system_online_status():
-    # ---------------------------------------------------------
-    # 10) System online/offline check
-    # ---------------------------------------------------------
+    global ONLINE_THRESHOLD_SECONDS
     flux_last = f'''
     from(bucket: "{BUCKET}")
     |> range(start: -10m)
@@ -466,29 +554,40 @@ def system_online_status():
     |> last()
     '''
 
-    tables = query_api.query(flux_last)
+    tables = safe_query(flux_last)
     last_time = None
     for table in tables:
         for rec in table.records:
-            last_time = rec.get_time()
+            try:
+                last_time = rec.get_time()
+            except Exception:
+                pass
 
     system_online = False
     now = datetime.now(timezone.utc)
-    if last_time:
-        delta = now - last_time.astimezone(timezone.utc)
-        system_online = delta.total_seconds() <= ONLINE_THRESHOLD_SECONDS
+    if last_time and ONLINE_THRESHOLD_SECONDS is not None:
+        try:
+            delta = now - last_time.astimezone(timezone.utc)
+            system_online = delta.total_seconds() <= ONLINE_THRESHOLD_SECONDS
+        except Exception:
+            system_online = False
     return system_online
 
+
 def room_status():
-    # 11) Room status
-    # ---------------------------------------------------------
+    global PM_GRID
     room_status = []
 
-    for dev in PM_GRID:
-        room_name = f"Room {dev[-1]}"  # Example: PM3 -> Room 3
-        room_id = int(dev[-1])  # Extract room ID from device name
+    if not PM_GRID:
+        return room_status
 
-        # Current power, voltage, ampere, temperature, kWh
+    for dev in PM_GRID:
+        room_name = f"Room {dev[-1]}"
+        try:
+            room_id = int(dev[-1])
+        except Exception:
+            room_id = 0
+
         flux_room = f'''
         from(bucket: "{BUCKET}")
         |> range(start: -1h)
@@ -499,7 +598,7 @@ def room_status():
         )
         |> last()
         '''
-        tables_room = query_api.query(flux_room)
+        tables_room = safe_query(flux_room)
 
         room_data = {
             "device": dev,
@@ -517,10 +616,13 @@ def room_status():
 
         for table in tables_room:
             for rec in table.records:
-                field = rec.get_field()
-                value = rec.get_value()
-                if field in room_data:
-                    room_data[field] = round(float(value), 2)
+                try:
+                    field = rec.get_field()
+                    value = rec.get_value()
+                    if field in room_data and value is not None:
+                        room_data[field] = round(float(value), 2)
+                except Exception:
+                    pass
 
         # Lights and AC state
         flux_state = f'''
@@ -532,16 +634,18 @@ def room_status():
         )
         |> last()
         '''
-        tables_state = query_api.query(flux_state)
-
+        tables_state = safe_query(flux_state)
         for table in tables_state:
             for rec in table.records:
-                if rec.get_field() == "ac":
-                    room_data["ac"] = bool(rec.get_value())
-                elif rec.get_field() == "lamp":
-                    room_data["lights"] = bool(rec.get_value())
+                try:
+                    if rec.get_field() == "ac":
+                        room_data["ac"] = bool(rec.get_value())
+                    elif rec.get_field() == "lamp":
+                        room_data["lights"] = bool(rec.get_value())
+                except Exception:
+                    pass
 
-        # History for power and temperature (hourly for the last 24 hours)
+        # History (hourly last 24h)
         flux_history = f'''
         from(bucket: "{BUCKET}")
         |> range(start: -24h)
@@ -554,59 +658,111 @@ def room_status():
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> keep(columns: ["_time", "_value", "_field"])
         '''
-        tables_history = query_api.query(flux_history)
+        tables_history = safe_query(flux_history)
 
         for table in tables_history:
             for rec in table.records:
-                field = rec.get_field()
+                try:
+                    field = rec.get_field()
+                    ts = rec.get_time().astimezone(timezone(timedelta(hours=7)))
+                    time_full = ts.strftime("%Y-%m-%d %H:%M")
+                    time_hour = ts.strftime("%H:%M")
+                    value = round(float(rec.get_value() or 0.0), 2)
 
-                # gunakan timestamp penuh sebagai key unik
-                ts = rec.get_time().astimezone(timezone(timedelta(hours=7)))  # Waktu Jakarta (UTC+7)
-                time_full = ts.strftime("%Y-%m-%d %H:%M")   # key unik
-                time_hour = ts.strftime("%H:%M")            # tampilan jam
+                    entry = next((item for item in room_data["history"] if item["time_full"] == time_full), None)
+                    if not entry:
+                        entry = {"time_full": time_full, "time": time_hour}
+                        room_data["history"].append(entry)
 
-                value = round(float(rec.get_value()), 2)
+                    entry[field] = value
+                except Exception:
+                    pass
 
-                # cari berdasarkan time_full, bukan hanya HH:MM
-                entry = next((item for item in room_data["history"] 
-                            if item["time_full"] == time_full), None)
-
-                if not entry:
-                    entry = {
-                        "time_full": time_full,   # untuk uniqueness
-                        "time": time_hour         # untuk tampilan UI
-                    }
-                    room_data["history"].append(entry)
-
-                entry[field] = value
-
-        # sort hasil berdasarkan timestamp supaya urut
         room_data["history"].sort(key=lambda x: x["time_full"])
         room_status.append(room_data)
+
     return room_status
 
+
 def build_dashboard_payload():
+    """
+    Public entry point.
+    Panggil initialize() terlebih dahulu (initialize akan aman dipanggil berkali-kali).
+    """
+    try:
+        initialize()
+    except Exception as e:
+        # initialize seharusnya aman, tapi log kalau ada masalah
+        logger.exception("initialize() failed: %s", e)
+
     now = datetime.now(timezone.utc)
-    total_today_kwh = calculate_total_today_kwh()
-    total_yesterday_kwh = calculate_total_yesterday_kwh()
-    total_today_cost = round(total_today_kwh * COST_PER_KWH, 2)
-    total_yesterday_cost = round(total_yesterday_kwh * COST_PER_KWH, 2)
+
+    # ambil data
+    try:
+        total_today_kwh = calculate_total_today_kwh()
+    except Exception:
+        logger.exception("calculate_total_today_kwh failed")
+        total_today_kwh = 0.0
+
+    try:
+        total_yesterday_kwh = calculate_total_yesterday_kwh()
+    except Exception:
+        logger.exception("calculate_total_yesterday_kwh failed")
+        total_yesterday_kwh = 0.0
+
+    total_today_cost = round(total_today_kwh * (COST_PER_KWH or get_cost_per_kwh()), 2)
+    total_yesterday_cost = round(total_yesterday_kwh * (COST_PER_KWH or get_cost_per_kwh()), 2)
     pct_power = pct_change(total_today_kwh, total_yesterday_kwh)
-    pct_cost  = pct_change(total_today_cost, total_yesterday_cost)
-    active_alarm_count, high_alarm_count = alarm_counts()
-    solar_today_kwh = calculate_solar_today_kwh()
+    pct_cost = pct_change(total_today_cost, total_yesterday_cost)
+
+    try:
+        active_alarm_count, high_alarm_count = alarm_counts()
+    except Exception:
+        logger.exception("alarm_counts failed")
+        active_alarm_count, high_alarm_count = 0, 0
+
+    try:
+        solar_today_kwh = calculate_solar_today_kwh()
+    except Exception:
+        logger.exception("calculate_solar_today_kwh failed")
+        solar_today_kwh = 0.0
+
     total_load = solar_today_kwh + total_today_kwh
     solar_share_pct = pct_solar_share(solar_today_kwh, total_load)
-    realtime_points = realtime_chart()
-    weekly_pln, weekly_solar = weekly_pln_vs_solar()
-    overview = room_overview()
-    system_online = system_online_status()
-    room_status = room_status()
-    
+
+    try:
+        realtime_points = realtime_chart()
+    except Exception:
+        logger.exception("realtime_chart failed")
+        realtime_points = []
+
+    try:
+        weekly_pln, weekly_solar = weekly_pln_vs_solar()
+    except Exception:
+        logger.exception("weekly_pln_vs_solar failed")
+        weekly_pln, weekly_solar = [], []
+
+    try:
+        overview = room_overview()
+    except Exception:
+        logger.exception("room_overview failed")
+        overview = []
+
+    try:
+        system_online = system_online_status()
+    except Exception:
+        logger.exception("system_online_status failed")
+        system_online = False
+
+    try:
+        room_status_data = room_status()
+    except Exception:
+        logger.exception("room_status failed")
+        room_status_data = []
+
     # -------------------------
     # Build payload
     # -------------------------
-
     def safe_json(data):
         def fix_value(v):
             if isinstance(v, float):
@@ -618,11 +774,10 @@ def build_dashboard_payload():
             return {k: fix_value(v) for k, v in data.items()}
         elif isinstance(data, list):
             return [fix_value(v) for v in data]
-        elif isinstance(data, datetime.datetime):
+        elif isinstance(data, datetime):
             return data.isoformat()
         return data
 
-    # --- 1) Power Summary ---
     power_summary = safe_json({
         "timestamp": now.isoformat(),
         "total_today_kwh": total_today_kwh,
@@ -631,52 +786,65 @@ def build_dashboard_payload():
         "pct_change_cost_vs_yesterday": pct_cost,
     })
 
-    # --- 2) Alarm Summary ---
     alarms_status = safe_json({
         "active_alarms": active_alarm_count,
         "high_priority_alarms": high_alarm_count,
     })
 
-    # --- 3) Solar Info ---
     solar_data = safe_json({
         "solar_today_kwh": solar_today_kwh,
         "solar_share_pct": solar_share_pct,
         "pln_today_kwh": total_today_kwh,
     })
 
-    # --- 4) Real-time Power Chart ---
-    realtime_chart = safe_json(realtime_points)
+    realtime_chart_data = safe_json(realtime_points)
 
-    # --- 5) Weekly PLN vs Solar ---
     weekly_chart = safe_json({
         "pln": weekly_pln,
         "solar": weekly_solar,
     })
 
-    # --- 6) Overview by Room ---
     overview_data = safe_json(overview)
 
-    # --- 7) System Online Status ---
     system_status = safe_json({
         "system_online": system_online,
     })
 
-    room_status_data = safe_json(room_status)
+    room_status_json = safe_json(room_status_data)
 
+    # Kirim ke channel group (jika channel_layer ter-setup)
     def send(topic, data):
-        async_to_sync(channel_layer.group_send)(
-            group_name,
-            {
-                "type": topic,
-                "data": data,
-            },
-        )
+        if channel_layer is None:
+            logger.warning("channel_layer is None, skipping send for %s", topic)
+            return
+        try:
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": topic,
+                    "data": data,
+                },
+            )
+        except Exception as e:
+            logger.exception("Failed group_send for %s: %s", topic, e)
 
     send("power_summary", power_summary)
     send("alarms_status", alarms_status)
     send("solar_data", solar_data)
-    send("realtime_chart", realtime_chart)
+    send("realtime_chart", realtime_chart_data)
     send("weekly_chart", weekly_chart)
     send("overview_room", overview_data)
     send("system_status", system_status)
-    send("room_status", room_status_data)
+    send("room_status", room_status_json)
+
+    # kembalikan payload juga supaya bisa langsung dikonsumsi
+    return {
+        "power_summary": power_summary,
+        "alarms_status": alarms_status,
+        "solar_data": solar_data,
+        "realtime_chart": realtime_chart_data,
+        "weekly_chart": weekly_chart,
+        "overview_room": overview_data,
+        "system_status": system_status,
+        "room_status": room_status_json,
+    }
