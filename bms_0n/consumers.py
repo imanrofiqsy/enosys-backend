@@ -2,8 +2,6 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 import logging
-from .management.commands.send_data import Command
-from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)
 
@@ -38,25 +36,12 @@ class MyConsumer(AsyncWebsocketConsumer):
         target = payload.get("target") if payload else None
         value = payload.get("value") if payload else None
 
-        topic = data.get("topic")
-        if topic == "request_data":
-            await self.handle_request_data()
-
         # Echo kembali ke client (bisa diubah sesuai kebutuhan)
         await self.send(text_data=json.dumps({
             "type": "ping",
             "topic": "ping",
             "payload": data
         }))
-
-    @sync_to_async
-    def call_build_payload(self):
-        cmd = Command()
-        return cmd.build_dashboard_payload()
-    
-    async def handle_request_data(self):
-        # Panggil fungsi build_dashboard_payload secara aman (sync → async)
-        await self.call_build_payload()
 
     # handler event dari group_send; tipe harus sama: send_dashboard_data
     async def send_dashboard_data(self, event):
