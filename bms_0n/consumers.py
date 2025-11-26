@@ -39,7 +39,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "type": "ping",
             "topic": "ping",
-            "payload": data
+            "payload": topic
         }))
 
     # handler event dari group_send; tipe harus sama: send_dashboard_data
