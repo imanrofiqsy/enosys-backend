@@ -2,6 +2,7 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 import logging
+from .utils import send_data_single
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,10 @@ class MyConsumer(AsyncWebsocketConsumer):
         device = payload.get("device") if payload else None
         target = payload.get("target") if payload else None
         value = payload.get("value") if payload else None
+
+        topic = data.get("topic")
+        if topic == "request_data":
+            send_data_single.build_dashboard_payload()
 
         # Echo kembali ke client (bisa diubah sesuai kebutuhan)
         await self.send(text_data=json.dumps({
