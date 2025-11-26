@@ -33,14 +33,25 @@ class MyConsumer(AsyncWebsocketConsumer):
 
         topic = data.get("topic")
         if topic == "request_data":
-            send_data_single.build_dashboard_payload()
+            payload = data.get("payload")
+            request = payload.get("request") if payload else None
+            if request == "initial_RoomControl_data":
+                send_data_single.build_room_status_payload()
+                # Echo kembali ke client (bisa diubah sesuai kebutuhan)
+                await self.send(text_data=json.dumps({
+                    "type": "ping",
+                    "topic": "ping",
+                    "payload": request
+                }))
+            elif request == "initial_Dashboard_data":
+                send_data_single.build_dashboard_payload()
+                await self.send(text_data=json.dumps({
+                    "type": "ping",
+                    "topic": "ping",
+                    "payload": request
+                }))
 
-            # Echo kembali ke client (bisa diubah sesuai kebutuhan)
-            await self.send(text_data=json.dumps({
-                "type": "ping",
-                "topic": "ping",
-                "payload": topic
-            }))
+            
 
     # handler event dari group_send; tipe harus sama: send_dashboard_data
     async def send_dashboard_data(self, event):
