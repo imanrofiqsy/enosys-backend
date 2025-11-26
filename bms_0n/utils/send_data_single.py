@@ -810,8 +810,6 @@ def build_dashboard_payload():
         "system_online": system_online,
     })
 
-    room_status_json = safe_json(room_status_data)
-
     # Kirim ke channel group (jika channel_layer ter-setup)
     def send(topic, data):
         if channel_layer is None:
@@ -835,19 +833,6 @@ def build_dashboard_payload():
     send("weekly_chart", weekly_chart)
     send("overview_room", overview_data)
     send("system_status", system_status)
-    send("room_status", room_status_json)
-
-    # kembalikan payload juga supaya bisa langsung dikonsumsi
-    return {
-        "power_summary": power_summary,
-        "alarms_status": alarms_status,
-        "solar_data": solar_data,
-        "realtime_chart": realtime_chart_data,
-        "weekly_chart": weekly_chart,
-        "overview_room": overview_data,
-        "system_status": system_status,
-        "room_status": room_status_json,
-    }
 
 def build_room_status_payload():
     """
