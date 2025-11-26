@@ -1,18 +1,13 @@
 import logging
-logging.basicConfig(level=logging.INFO)
 import math
 from datetime import datetime, timezone, timedelta
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
 
 from influxdb_client import InfluxDBClient
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-logger = logging.getLogger(__name__)
-
-POLL_INTERVAL = int(getattr(settings, "INFLUX_POLL_INTERVAL", 5))
 INFLUX = settings.INFLUXDB
 BUCKET = INFLUX["bucket"]
 ORG = INFLUX["org"]
@@ -26,7 +21,7 @@ PM_LIST = [f"PM{i}" for i in range(1, 9)]
 PM_GRID = [f"PM{i}" for i in range(1, 8)]  # 1..7 -> main PLN per asumsi
 
 # online freshness threshold (seconds)
-ONLINE_THRESHOLD_SECONDS = int(getattr(settings, "DASHBOARD_ONLINE_THRESHOLD", 90))
+ONLINE_THRESHOLD_SECONDS = 90
 
 client = InfluxDBClient(url=INFLUX["url"], token=INFLUX["token"], org=ORG, timeout=60000)
 query_api = client.query_api()
