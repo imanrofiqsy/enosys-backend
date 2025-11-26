@@ -848,3 +848,61 @@ def build_dashboard_payload():
         "system_status": system_status,
         "room_status": room_status_json,
     }
+
+def build_room_status_payload():
+    """
+    Public entry point.
+    Panggil initialize() terlebih dahulu (initialize akan aman dipanggil berkali-kali).
+    """
+    try:
+        initialize()
+    except Exception as e:
+        # initialize seharusnya aman, tapi log kalau ada masalah
+        logger.exception("initialize() failed: %s", e)
+
+    now = datetime.now(timezone.utc)
+
+    # ambil data
+    try:
+        room_status_data = room_status()
+    except Exception:
+        logger.exception("room_status failed")
+        room_status_data = []
+
+    # -------------------------
+    # Build payload
+    # -------------------------
+    def safe_json(data):
+        def fix_value(v):
+            if isinstance(v, float):
+                if math.isnan(v) or math.isinf(v):
+                    return 0.0
+            return v
+
+        if isinstance(data, dict):
+            return {k: fix_value(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [fix_value(v) for v in data]
+        elif isinstance(data, datetime):
+            return data.isoformat()
+        return data
+
+    room_status_json = safe_json(room_status_data)
+
+    # Kirim ke channel group (jika channel_layer ter-setup)
+    def send(topic, data):
+        if channel_layer is None:
+            logger.warning("channel_layer is None, skipping send for %s", topic)
+            return
+        try:
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": topic,
+                    "data": data,
+                },
+            )
+        except Exception as e:
+            logger.exception("Failed group_send for %s: %s", topic, e)
+
+    send("room_status", room_status_json)
