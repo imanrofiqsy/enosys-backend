@@ -809,12 +809,6 @@ def build_dashboard_payload():
         logger.exception("system_online_status failed")
         system_online = False
 
-    try:
-        room_status_data = room_status()
-    except Exception:
-        logger.exception("room_status failed")
-        room_status_data = []
-
     # -------------------------
     # Build payload
     # -------------------------
