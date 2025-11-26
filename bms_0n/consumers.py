@@ -37,9 +37,9 @@ class MyConsumer(AsyncWebsocketConsumer):
         target = payload.get("target") if payload else None
         value = payload.get("value") if payload else None
 
-        topic = data.get("topic")
-        if topic == "request_data":
-            build_dashboard_payload()
+        # topic = data.get("topic")
+        # if topic == "request_data":
+        #     build_dashboard_payload()
 
         # Echo kembali ke client (bisa diubah sesuai kebutuhan)
         await self.send(text_data=json.dumps({
