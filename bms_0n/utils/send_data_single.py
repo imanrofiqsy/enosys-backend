@@ -1,4 +1,5 @@
 # bms_0n/utils/send_data_single.py
+import asyncio
 import logging
 import math
 from datetime import datetime, timezone, timedelta
@@ -6,8 +7,9 @@ from datetime import datetime, timezone, timedelta
 from django.conf import settings
 
 from influxdb_client import InfluxDBClient
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
+
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +105,59 @@ def safe_query(flux):
     except Exception as e:
         logger.exception("Influx query failed: %s", e)
         return []
+    
+async def send_async(group_name: str, topic: str, data):
+    """
+    Kirim pesan ke channel group dalam lingkungan ASGI (async).
+    Dipakai dari consumers.py atau async tasks.
+    """
+    if channel_layer is None:
+        logger.warning("channel_layer is None (async), skip send.")
+        return
+
+    try:
+        await channel_layer.group_send(
+            group_name,
+            {
+                "type": topic,
+                "data": data,
+            }
+        )
+    except Exception as e:
+        logger.exception("Async group_send failed: %s", e)
+
+
+def send_sync(group_name: str, topic: str, data):
+    """
+    Kirim pesan dari lingkungan non-async (Django command, cron).
+    """
+    if channel_layer is None:
+        logger.warning("channel_layer is None (sync), skip send.")
+        return
+
+    try:
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                "type": topic,
+                "data": data,
+            }
+        )
+    except Exception as e:
+        logger.exception("Sync group_send failed: %s", e)
+
+
+def send(group_name: str, topic: str, data):
+    """
+    AUTO — pilih async atau sync berdasarkan kondisi.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        # Jika ada event loop aktif → gunakan async
+        return asyncio.create_task(send_async(group_name, topic, data))
+    except RuntimeError:
+        # Jika TIDAK ada event loop → aman pakai sync
+        return send_sync(group_name, topic, data)
 
 
 # -------------------------
@@ -810,29 +865,13 @@ def build_dashboard_payload():
         "system_online": system_online,
     })
 
-    # Kirim ke channel group (jika channel_layer ter-setup)
-    def send(topic, data):
-        if channel_layer is None:
-            logger.warning("channel_layer is None, skipping send for %s", topic)
-            return
-        try:
-            async_to_sync(channel_layer.group_send)(
-                group_name,
-                {
-                    "type": topic,
-                    "data": data,
-                },
-            )
-        except Exception as e:
-            logger.exception("Failed group_send for %s: %s", topic, e)
-
-    send("power_summary", power_summary)
-    send("alarms_status", alarms_status)
-    send("solar_data", solar_data)
-    send("realtime_chart", realtime_chart_data)
-    send("weekly_chart", weekly_chart)
-    send("overview_room", overview_data)
-    send("system_status", system_status)
+    send("dashboard_group","power_summary", power_summary)
+    send("dashboard_group","alarms_status", alarms_status)
+    send("dashboard_group","solar_data", solar_data)
+    send("dashboard_group","realtime_chart", realtime_chart_data)
+    send("dashboard_group","weekly_chart", weekly_chart)
+    send("dashboard_group","overview_room", overview_data)
+    send("dashboard_group","system_status", system_status)
 
 def build_room_status_payload():
     """
@@ -874,20 +913,4 @@ def build_room_status_payload():
 
     room_status_json = safe_json(room_status_data)
 
-    # Kirim ke channel group (jika channel_layer ter-setup)
-    def send(topic, data):
-        if channel_layer is None:
-            logger.warning("channel_layer is None, skipping send for %s", topic)
-            return
-        try:
-            async_to_sync(channel_layer.group_send)(
-                group_name,
-                {
-                    "type": topic,
-                    "data": data,
-                },
-            )
-        except Exception as e:
-            logger.exception("Failed group_send for %s: %s", topic, e)
-
-    send("room_status", room_status_json)
+    send("dashboard_group","room_status", room_status_json)
