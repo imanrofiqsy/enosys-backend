@@ -31,12 +31,6 @@ class MyConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
             return
 
-        # Ambil nilai
-        payload = data.get("payload")
-        device = payload.get("device") if payload else None
-        target = payload.get("target") if payload else None
-        value = payload.get("value") if payload else None
-
         topic = data.get("topic")
         if topic == "request_data":
             send_data_single.build_dashboard_payload()
