@@ -598,11 +598,11 @@ class Command(BaseCommand):
         total_today_kwh = self.calculate_total_today_kwh()
         total_yesterday_kwh = self.calculate_total_yesterday_kwh()
         total_today_cost = round(total_today_kwh * COST_PER_KWH, 2)
-        total_today_cost = format(total_today_cost, ",").replace(",", ".")
         total_yesterday_cost = round(total_yesterday_kwh * COST_PER_KWH, 2)
-        total_yesterday_cost = format(total_yesterday_cost, ",").replace(",", ".")
         pct_power = self.pct_change(total_today_kwh, total_yesterday_kwh)
         pct_cost  = self.pct_change(total_today_cost, total_yesterday_cost)
+        total_today_cost = format(total_today_cost, ",").replace(",", ".")
+        total_yesterday_cost = format(total_yesterday_cost, ",").replace(",", ".")
         active_alarm_count, high_alarm_count = self.alarm_counts()
         solar_today_kwh = self.calculate_solar_today_kwh()
         total_load = solar_today_kwh + total_today_kwh
