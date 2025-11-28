@@ -6,9 +6,10 @@ from datetime import datetime, timezone, timedelta
 
 from django.conf import settings
 
-from influxdb_client import InfluxDBClient
+from influxdb_client import InfluxDBClient, Point
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
+from influxdb_client.client.write_api import SYNCHRONOUS
 
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ ONLINE_THRESHOLD_SECONDS = None
 
 client = None
 query_api = None
+write_api = None
 channel_layer = None
 group_name = None
 
@@ -67,6 +69,7 @@ def initialize():
     client = get_influx_client()
     try:
         query_api = client.query_api()
+        write_api = client.write_api(write_options=SYNCHRONOUS)
     except Exception as e:
         # jika client gagal dibuat, set query_api ke None dan log error
         logger.exception("Failed creating Influx query_api: %s", e)
@@ -738,6 +741,33 @@ def room_status():
 
     return room_status
 
+def create_room_scheduler(time_on, time_off, room_id):
+    """
+    Public entry point.
+    Buat jadwal harian untuk menyalakan/mematikan AC di room tertentu.
+    time_on & time_off: string "HH:MM" dalam timezone lokal.
+    room_id: integer sesuai room_id di room_status().
+    """
+    global BUCKET
+
+    device = f"PM{room_id}"
+
+    point_on =  (
+                    Point("room_scheduling_data")
+                    .tag("device", device)
+                    .field("action", "ON")
+                    .field("time", time_on)
+                )
+    write_api.write(bucket=BUCKET, record=point_on)
+
+    point_off = (
+                    Point("room_scheduling_data")
+                    .tag("device", device)
+                    .field("action", "OFF")
+                    .field("time", time_off)
+                )
+    write_api.write(bucket=BUCKET, record=point_off)
+    
 
 def build_dashboard_payload():
     """
